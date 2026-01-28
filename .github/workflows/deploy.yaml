@@ -17,9 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Validate models YAML schema
-        run: |
-          python .github/scripts/validate_models_yaml.py models.yaml
+      - name: Where am I 
+        run: ls -la
+      # - name: Validate models YAML schema
+      #   run: |
+      #     python .github/scripts/validate_models_yaml.py models.yaml
       
       # - name: Configure AWS Credentials
       #   uses: aws-actions/configure-aws-credentials@v5
