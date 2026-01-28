@@ -16,24 +16,22 @@ jobs:
     name: 'Terraform Plan & Apply'
     runs-on: ubuntu-latest
     steps:
-
-      - name: Where am I 
-        run: ls -la
-      # - name: Validate models YAML schema
-      #   run: |
-      #     python .github/scripts/validate_models_yaml.py models.yaml
       
+      - name: Checkout Codebase
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Validate models YAML schema
+        run: |
+          python .github/scripts/validate_models_yaml.py models.yaml
+
       # - name: Configure AWS Credentials
       #   uses: aws-actions/configure-aws-credentials@v5
       #   with:
       #     role-to-assume: ${{ secrets.ROLE_ARN }}
       #     role-session-name: GitHub_to_AWS_via_FederatedOIDC
       #     aws-region: ${{ env.AWS_REGION }}
-
-      # - name: Checkout Codebase
-      #   uses: actions/checkout@v5
-      #   with:
-      #     ref: main
 
       # - name: Setup Terraform
       #   uses: hashicorp/setup-terraform@v3
