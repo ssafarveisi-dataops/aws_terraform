@@ -19,8 +19,6 @@ jobs:
 
       - name: Validate models YAML schema
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pyyaml
           python .github/scripts/validate_models_yaml.py models.yaml
       
       # - name: Configure AWS Credentials
