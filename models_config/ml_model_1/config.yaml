@@ -1,10 +1,7 @@
 ml_model_1: # REMOVE if POC is not required anymore
-  model_name: ml_model_1
   container:
-    fast_api_image: docker.io/ciaa/triton-api-gateway:latest
-    port: 8080
+    litserve_image: PLACEHOLDER # When the first time an ECS service and task is created
   artifacts:
     s3_bucket: dataops-poc-deployment
-    s3_prefix: triton_repository
   routing:
     priority: 10

@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 import yaml
 
-REQUIRED_TOP_LEVEL = ["model_name", "container", "artifacts", "routing"]
+REQUIRED_TOP_LEVEL = ["container", "artifacts", "routing"]
 
 def fail(msg: str) -> None:
     print(f"YAML schema validation failed: {msg}", file=sys.stderr)
@@ -49,18 +49,11 @@ def validate_model_entry(entry_key: str, entry_val: Any) -> None:
         if k not in entry_val:
             fail(f"Missing '{path}.{k}'")
 
-    model_name = expect_str(entry_val, path, "model_name")
-    # Optional strictness: enforce model_name equals the parent key
-    if model_name != entry_key:
-        fail(f"'{path}.model_name' must equal '{entry_key}', got '{model_name}'")
-
     container = expect_dict(entry_val, path, "container")
-    expect_str(container, f"{path}.container", "fast_api_image")
-    expect_int(container, f"{path}.container", "port")
+    expect_str(container, f"{path}.container", "litserve_image")
 
     artifacts = expect_dict(entry_val, path, "artifacts")
     expect_str(artifacts, f"{path}.artifacts", "s3_bucket")
-    expect_str(artifacts, f"{path}.artifacts", "s3_prefix")
 
     routing = expect_dict(entry_val, path, "routing")
     expect_int(routing, f"{path}.routing", "priority")

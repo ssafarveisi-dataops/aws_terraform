@@ -121,16 +121,16 @@ resource "aws_ecs_cluster_capacity_providers" "ecs_providers" {
 module "ecs_service" {
   for_each               = local.models # Decoded yaml containing several keys
   source                 = "./modules/ecs_ml_service"
-  resource_prefix        = replace(each.value.model_name, "_", "-")
+  resource_prefix        = replace(each.key, "_", "-")
   vpc_id                 = aws_vpc.main.id
   public_subnet_list     = aws_subnet.public_subnets[*].id
   alb_security_group_id  = aws_security_group.alb_security_group.id
   lb_listener_arn        = aws_lb_listener.lb_listener.arn
   listener_rule_priority = each.value.routing.priority
   aws_region             = var.aws_region
-  app_port               = each.value.container.port
+  app_port               = 8080
   ecs_cluster_id         = aws_ecs_cluster.ecs_cluster.id
-  fastapi_image          = each.value.container.fast_api_image
+  litserve_image         = each.value.container.litserve_image
   s3_bucket              = each.value.artifacts.s3_bucket
-  s3_prefix              = each.value.artifacts.s3_prefix
+  s3_prefix              = replace(each.key, "_", "-")
 }

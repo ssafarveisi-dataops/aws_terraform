@@ -36,7 +36,7 @@ function concatenate_model_yamls {
     fi
 
     # Concatenate all model config files
-    for f in models/**/config.yaml; do
+    for f in models_config/**/config.yaml; do
         cat "$f" >> "$output_file"
         echo "" >> "$output_file"
     done

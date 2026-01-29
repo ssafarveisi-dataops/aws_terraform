@@ -1,0 +1,123 @@
+name: Deploy ECS task definition
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual trigger"
+        required: false
+        type: string
+
+jobs:
+    discover:
+      runs-on: ubuntu-latest
+      outputs:
+        matrix: ${{ steps.set-matrix.outputs.matrix }}
+      steps:
+        - uses: actions/checkout@v5
+          with:
+            ref: main
+
+        - id: set-matrix
+          shell: bash
+          run: |
+            set -euo pipefail
+
+            # Find direct subdirectories under models/
+            # (If you want nested, adjust find depth)
+            mapfile -t dirs < <(find models -mindepth 1 -maxdepth 1 -type d -print | sort)
+
+            if [ ${#dirs[@]} -eq 0 ]; then
+              echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            # Build JSON matrix: include[] items like
+            # { "name": "ml_model_1", "context": "models/ml_model_1", "dockerfile": "models/ml_model_1/Dockerfile", "version": "0.1.0" }
+            json='{"include":['
+            first=1
+
+            for d in "${dirs[@]}"; do
+              name="$(basename "$d")"
+              dockerfile="$d/Dockerfile"
+              pyproject="$d/pyproject.toml"
+
+              if [ ! -f "$dockerfile" ]; then
+                echo "Skipping $d (no Dockerfile)"
+                continue
+              fi
+              if [ ! -f "$pyproject" ]; then
+                echo "Skipping $d (no pyproject.toml)"
+                continue
+              fi
+
+              # Extract version from pyproject.toml.
+              # Works for common Poetry format: version = "x.y.z"
+              version="$(grep -E '^[[:space:]]*version[[:space:]]*=' "$pyproject" | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')"
+
+              if [ -z "$version" ]; then
+                echo "Skipping $d (could not parse version in pyproject.toml)"
+                continue
+              fi
+
+              [ $first -eq 0 ] && json+=',' || first=0
+              json+="{\"name\":\"$name\",\"context\":\"$d\",\"dockerfile\":\"$dockerfile\",\"version\":\"$version\"}"
+            done
+
+            json+=']}'
+            echo "matrix=$json" >> "$GITHUB_OUTPUT"
+            echo "$json"
+
+    deploy-task:
+      needs: discover
+      name: 'Deploy Task manifest file'
+      if: ${{ fromJSON(needs.discover.outputs.matrix).include[0] != null }}
+      runs-on: ubuntu-latest
+      strategy:
+        matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+        fail-fast: false
+
+      steps:  
+        - name: Checkout Codebase
+          uses: actions/checkout@v5
+          with:
+            ref: main
+            
+        - name: Print discovery
+          run: |
+            echo "REPO:TAG --> ${{ matrix.name }}:${{ matrix.version }}"
+            echo "DOCKERFILE --> ${{ matrix.dockerfile }}"
+            echo "BUILD_CONTEXT --> ${{ matrix.context }}"
+
+        # - name: Configure AWS Credentials
+        #   uses: aws-actions/configure-aws-credentials@v5
+        #   with:
+        #     role-to-assume: ${{ secrets.ROLE_ARN }}
+        #     role-session-name: GitHub_to_AWS_via_FederatedOIDC
+        #     aws-region: ${{ env.AWS_REGION }}
+        
+        # - name: Login to AWS ECR
+        #   id: login-ecr
+        #   uses: aws-actions/amazon-ecr-login@v2
+
+        
+        # - name: Setup Docker Buildx
+        #   run: docker buildx create --use
+          
+        # - name: Build and Push Image
+        #   id: build-push-image
+        #   env:
+        #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }} # Fixed in each iteration
+        #     ECR_REPOSITORY: dataops-poc-deployment # Fixed in each iteration
+        #     IMAGE_TAG: # This is the tag provided in each iteration ({sub-folder-name}:{version found in pyproject.toml})
+        #     DOCKERFILE_PATH: # Path to the Dockerfile in each iteration (each sub-folder has this Dockerfile)
+        #   run: |
+        #     echo "Building and pushing image..."
+        #     docker buildx build \
+        #       -f $DOCKERFILE_PATH \
+        #       --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+        #       --platform linux/amd64 \
+        #       --push \
+        #       .
+        #     echo "Image built and pushed successfully."
+        #     echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT

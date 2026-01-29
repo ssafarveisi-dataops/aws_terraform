@@ -1,20 +1,8 @@
-ml_model_2: # REMOVE if POC is not required anymore
-  model_name: ml_model_2
-  container:
-    fast_api_image: docker.io/ciaa/triton-api-gateway:latest
-    port: 8080
-  artifacts:
-    s3_bucket: dataops-poc-deployment
-    s3_prefix: triton_repository
-  routing:
-    priority: 11
 ml_model_1: # REMOVE if POC is not required anymore
-  model_name: ml_model_1
   container:
-    fast_api_image: docker.io/ciaa/triton-api-gateway:latest
-    port: 8080
+    litserve_image: PLACEHOLDER # When the first time a task is created
+    port: 8080 # Please do not edit this
   artifacts:
     s3_bucket: dataops-poc-deployment
-    s3_prefix: triton_repository
   routing:
     priority: 10

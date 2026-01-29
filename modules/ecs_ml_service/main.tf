@@ -1,10 +1,10 @@
-resource "aws_cloudwatch_log_group" "triton_logs" {
-  name              = "${var.resource_prefix}-triton-server-logs"
-  retention_in_days = 1
+locals {
+  is_placeholder_image = var.litserve_image == "PLACEHOLDER"
+  placeholder_image    = "hashicorp/http-echo:latest"
 }
 
-resource "aws_cloudwatch_log_group" "fastapi_logs" {
-  name              = "${var.resource_prefix}-triton-api-gateway-logs"
+resource "aws_cloudwatch_log_group" "litserve_logs" {
+  name              = "${var.resource_prefix}-litserve-logs"
   retention_in_days = 1
 }
 
@@ -93,7 +93,7 @@ resource "aws_lb_target_group" "alb_target_group" {
   }
 }
 
-resource "aws_alb_listener_rule" "route_triton" {
+resource "aws_alb_listener_rule" "route_litserve" {
   listener_arn = var.lb_listener_arn
   priority     = var.listener_rule_priority
 
@@ -124,64 +124,26 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
   requires_compatibilities = ["FARGATE"]
   task_role_arn            = aws_iam_role.ecs_task.arn
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
-  cpu                      = 4096  # 4 vCPU
-  memory                   = 30720 # 30 GB
+  cpu                      = 256 # 4 vCPU
+  memory                   = 512 # 30 GB
   runtime_platform {
     operating_system_family = "LINUX"
     cpu_architecture        = "X86_64"
   }
   container_definitions = jsonencode([
     {
-      name      = "triton-container"
-      image     = "${var.triton_image}" # Triton server image supporting CPU-only setups
+      name      = "litserve-container"
+      image     = local.is_placeholder_image ? local.placeholder_image : "${var.litserve_image}"
       essential = true
-      command = [
-        "tritonserver",
-        "--model-repository=s3://${var.s3_bucket}/${var.s3_prefix}/",
-        "--model-control-mode=poll", # Detects changes in the model repository (e.g., new versions)
-        "--repository-poll-secs=60"  # Query the S3 bucket every 60 seconds for the changes (e.g., new versions)
-      ]
       portMappings = [
         {
-          containerPort = 8000 # Triton inference endpoint port
+          containerPort = var.app_port # Litserve port
           protocol      = "tcp"
           appProtocol   = "http"
         }
       ]
-
-      healthCheck = {
-        command = [
-          "CMD-SHELL",
-          "curl -f http://localhost:8000/v2/health/live || exit 1"
-        ]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60 # Wait for 60 seconds before checking health
-      }
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = "${aws_cloudwatch_log_group.triton_logs.name}"
-          awslogs-region        = "${var.aws_region}"
-          awslogs-stream-prefix = "ecs"
-        }
-      }
-    },
-    {
-      name      = "fastapi-container"
-      image     = "${var.fastapi_image}" # Triton's api gateway
-      essential = true
-      portMappings = [
-        {
-          containerPort = var.app_port # FastAPI inference endpoint port
-          protocol      = "tcp"
-          appProtocol   = "http"
-        }
-      ]
-
-      healthCheck = {
+      command = local.is_placeholder_image ? ["-listen=:${var.app_port}"] : null
+      healthCheck = local.is_placeholder_image ? null : {
         command = [
           "CMD-SHELL",
           "curl -f http://localhost:${var.app_port}/health || exit 1"
@@ -194,15 +156,19 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
 
       environment = [
         {
-          name  = "ROOT_PATH"
-          value = "/${var.resource_prefix}"
+          name  = "S3_BUCKET"
+          value = "${var.s3_bucket}"
+        },
+        {
+          name  = "S3_PREFIX"
+          value = "${var.s3_prefix}"
         }
       ]
 
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "${aws_cloudwatch_log_group.fastapi_logs.name}"
+          awslogs-group         = "${aws_cloudwatch_log_group.litserve_logs.name}"
           awslogs-region        = "${var.aws_region}"
           awslogs-stream-prefix = "ecs"
         }
@@ -228,7 +194,7 @@ resource "aws_ecs_service" "ecs_service" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.alb_target_group.arn
-    container_name   = "fastapi-container"
+    container_name   = "litserve-container"
     container_port   = var.app_port
   }
 }

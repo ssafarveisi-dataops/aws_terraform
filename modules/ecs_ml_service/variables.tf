@@ -33,16 +33,9 @@ variable "app_port" {
   type        = number
 }
 
-variable "triton_image" {
-  description = "Triton image uri"
+variable "litserve_image" {
+  description = "Litserve image uri"
   type        = string
-  default     = "nvcr.io/nvidia/tritonserver:25.10-py3"
-}
-
-variable "fastapi_image" {
-  description = "FastAPI image uri"
-  type        = string
-  default     = "docker.io/ciaa/triton-api-gateway:latest"
 }
 
 variable "ecs_cluster_id" {
@@ -61,6 +54,6 @@ variable "s3_bucket" {
 }
 
 variable "s3_prefix" {
-  description = "S3 prefix where the artifacts are stored"
+  description = "S3 key for the stored artifact"
   type        = string
 }
