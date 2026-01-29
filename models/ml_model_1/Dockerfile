@@ -14,7 +14,7 @@ ENV BUILD_ENV=$BUILD_ENV
 
 COPY certificates/ /usr/local/share/ca-certificates/
 
-RUN if [ "$BUILD_ENV" = "git-actions" ] ; then echo "production env"; else echo "non-production env: BUILD_ENV"; update-ca-certificates ; fi
+RUN if [ "$BUILD_ENV" = "git-actions" ] ; then echo "non-local env"; else echo "local env: BUILD_ENV"; update-ca-certificates ; fi
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
