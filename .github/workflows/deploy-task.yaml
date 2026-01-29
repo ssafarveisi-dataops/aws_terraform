@@ -128,11 +128,11 @@ jobs:
             set -euo pipefail
             echo "Building and pushing: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
             docker buildx build \
-              --file "$DOCKERFILE_PATH" \
-              --tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+              --file $DOCKERFILE_PATH \
+              --tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
               --platform linux/amd64 \
-              --build-context "$BUILD_CONTEXT"
-              --build-arg "$PYTHON_VERSION" \
-              --push
+              --build-arg $PYTHON_VERSION \
+              --push \
+              $BUILD_CONTEXT
             echo "Image built and pushed successfully."
             echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
