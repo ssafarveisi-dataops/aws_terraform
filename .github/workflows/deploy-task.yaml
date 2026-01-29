@@ -7,6 +7,12 @@ on:
         description: "Reason for manual trigger"
         required: false
         type: string
+env:
+  AWS_REGION: "eu-central-1"
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
     discover:
@@ -83,26 +89,20 @@ jobs:
           with:
             ref: main
 
-        - name: Print discovery
-          run: |
-            echo "TAG --> ${{ matrix.name }}-${{ matrix.version }}"
-            echo "DOCKERFILE --> ${{ matrix.dockerfile }}"
-            echo "BUILD_CONTEXT --> ${{ matrix.context }}"
-
-        # - name: Configure AWS Credentials
-        #   uses: aws-actions/configure-aws-credentials@v5
-        #   with:
-        #     role-to-assume: ${{ secrets.ROLE_ARN }}
-        #     role-session-name: GitHub_to_AWS_via_FederatedOIDC
-        #     aws-region: ${{ env.AWS_REGION }}
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v5
+          with:
+            role-to-assume: ${{ secrets.ROLE_ARN }}
+            role-session-name: GitHub_to_AWS_via_FederatedOIDC
+            aws-region: ${{ env.AWS_REGION }}
         
-        # - name: Login to AWS ECR
-        #   id: login-ecr
-        #   uses: aws-actions/amazon-ecr-login@v2
+        - name: Login to AWS ECR
+          id: login-ecr
+          uses: aws-actions/amazon-ecr-login@v2
 
         
-        # - name: Setup Docker Buildx
-        #   run: docker buildx create --use
+        - name: Setup Docker Buildx
+          run: docker buildx create --use
           
         # - name: Build and Push Image
         #   id: build-push-image
