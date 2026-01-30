@@ -9,6 +9,8 @@ on:
         type: string
 env:
   AWS_REGION: "eu-central-1"
+  S3_BUCKET: "dataops-poc-deployment"
+  ECS_CLUSTER: "poc-deployment-cluster"
 
 permissions:
   id-token: write
@@ -107,10 +109,15 @@ jobs:
             role-session-name: GitHub_to_AWS_via_FederatedOIDC
             aws-region: ${{ env.AWS_REGION }}
         
+        - name: Get AWS Account ID
+          id: get-account
+          run: |
+            ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+            echo "account=$ACCOUNT_ID" >> $GITHUB_OUTPUT
+
         - name: Login to AWS ECR
           id: login-ecr
           uses: aws-actions/amazon-ecr-login@v2
-
         
         - name: Setup Docker Buildx
           run: docker buildx create --use
@@ -136,3 +143,77 @@ jobs:
               $BUILD_CONTEXT
             echo "Image built and pushed successfully."
             echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          
+          # aws-actions/amazon-ecs-render-task-definition is not useable here
+        - name: Render ECS task definition
+          id: render-taskdef
+          shell: bash
+          env:
+            FAMILY: "${{ matrix.name }}-poc-deployment-task"               
+            TASK_ROLE_ARN: "arn:aws:iam::${{ steps.get-account.outputs.account }}:role/${{ matrix.name }}-poc-deployment-task-role" 
+            EXEC_ROLE_ARN: "arn:aws:iam::${{ steps.get-account.outputs.account }}:role/${{ matrix.name }}-poc-deployment-task-execution-role"
+            IMAGE: "${{ steps.build-push-image.outputs.image }}"
+            S3_BUCKET: ${{ env.S3_BUCKET }}
+            S3_PREFIX: ${{ matrix.name }}
+            LOG_GROUP:  "${{ matrix.name }}-litserve-logs"              
+            AWS_REGION: ${{ env.AWS_REGION }}                 
+          run: |
+            set -euo pipefail
+
+            TEMPLATE="task-definition.template.json"
+            OUT="task-definition.json"
+
+            COMMAND_JSON='[]'
+
+            jq \
+              --arg family "$FAMILY" \
+              --arg taskRoleArn "$TASK_ROLE_ARN" \
+              --arg executionRoleArn "$EXEC_ROLE_ARN" \
+              --arg image "$IMAGE" \
+              --arg s3_bucket "$S3_BUCKET" \
+              --arg s3_prefix "$S3_PREFIX" \
+              --arg log_group "$LOG_GROUP" \
+              --arg region "$AWS_REGION" \
+              --argjson command "$COMMAND_JSON" \
+              '
+              .family = $family
+              | .taskRoleArn = $taskRoleArn
+              | .executionRoleArn = $executionRoleArn
+              | .containerDefinitions[0].image = $image
+              | .containerDefinitions[0].command = $command
+              | (.containerDefinitions[0].environment |=
+                  map(
+                    if .name == "S3_BUCKET" then .value = $s3_bucket
+                    elif .name == "S3_PREFIX" then .value = $s3_prefix
+                    else .
+                    end
+                  )
+                )
+              | .containerDefinitions[0].logConfiguration.options["awslogs-group"] = $log_group
+              | .containerDefinitions[0].logConfiguration.options["awslogs-region"] = $region
+              ' "$TEMPLATE" > "$OUT"
+
+            echo "taskdef=$OUT" >> "$GITHUB_OUTPUT"
+            echo "Rendered $OUT:"
+            cat "$OUT"
+
+        - name: Deploy Amazon ECS Task Definition
+          uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+          with:
+            task-definition: ${{ steps.render-taskdef.outputs.taskdef }}
+            service: ${{ matrix.name }}-poc-deployment-service
+            cluster: ${{ env.ECS_CLUSTER }}
+            wait-for-service-stability: true
+            wait-for-minutes: 20
+
+        - name: Log deployment
+          if: always()
+          run: |
+            echo "Deployment triggered by: ${{ github.event_name }}"
+            if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+              echo "Manual trigger reason: ${{ github.event.inputs.reason }}"
+            fi
+
+        - name: Clean up Docker
+          if: always()
+          run: docker system prune --all --force

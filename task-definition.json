@@ -1,0 +1,64 @@
+{
+  "family": "my-litserve-task",
+  "taskRoleArn": "arn:aws:iam::123456789012:role/MyTaskRole",
+  "executionRoleArn": "arn:aws:iam::123456789012:role/MyExecutionRole",
+  "networkMode": "awsvpc",
+  "placementConstraints": [],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "litserve-container",
+      "image": "123456789012.dkr.ecr.eu-central-1.amazonaws.com/my-litserve:1.0.0",
+      "command": [],
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp",
+          "appProtocol": "http"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 10
+      },
+      "essential": true,
+      "cpu": 256,
+      "memoryReservation": 512,
+      "resourceRequirements": [],
+      "environment": [
+        {
+          "name": "S3_BUCKET",
+          "value": "dataops-poc-deployment"
+        },
+        {
+          "name": "S3_PREFIX",
+          "value": "triton_repository"
+        }
+      ],
+      "secrets": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/my-litserve",
+          "mode": "non-blocking",
+          "max-buffer-size": "25m",
+          "awslogs-region": "eu-central-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ],
+  "tags": []
+}

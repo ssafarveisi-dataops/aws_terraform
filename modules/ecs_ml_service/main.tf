@@ -170,6 +170,8 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
         options = {
           awslogs-group         = "${aws_cloudwatch_log_group.litserve_logs.name}"
           awslogs-region        = "${var.aws_region}"
+          mode                  = "non-blocking",
+          max-buffer-size       = "25m",
           awslogs-stream-prefix = "ecs"
         }
       }

@@ -1,4 +1,4 @@
-ml_model_1: # REMOVE if POC is not required anymore
+ml-model-1: # REMOVE if POC is not required anymore
   container:
     litserve_image: PLACEHOLDER # When the first time an ECS service and task is created
   artifacts:
