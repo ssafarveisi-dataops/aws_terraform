@@ -5,6 +5,8 @@
   "networkMode": "awsvpc",
   "placementConstraints": [],
   "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
   "runtimePlatform": {
     "cpuArchitecture": "X86_64",
     "operatingSystemFamily": "LINUX"
@@ -32,8 +34,6 @@
         "startPeriod": 10
       },
       "essential": true,
-      "cpu": 256,
-      "memoryReservation": 512,
       "resourceRequirements": [],
       "environment": [
         {
