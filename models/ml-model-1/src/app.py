@@ -4,7 +4,7 @@ import litserve as ls
 import torch
 
 class InferenceEngine(ls.LitAPI):
-    def setup(self):
+    def setup(self, device):
         s3 = boto3.client("s3")
         bucket = os.environ["S3_BUCKET"]
         prefix = os.environ["S3_PREFIX"]
