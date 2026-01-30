@@ -1,8 +1,0 @@
-ml_model_1: # REMOVE if POC is not required anymore
-  container:
-    litserve_image: PLACEHOLDER # When the first time a task is created
-    port: 8080 # Please do not edit this
-  artifacts:
-    s3_bucket: dataops-poc-deployment
-  routing:
-    priority: 10
