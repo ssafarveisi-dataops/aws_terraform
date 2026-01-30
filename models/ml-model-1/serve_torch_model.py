@@ -20,13 +20,9 @@ class SimpleRegressor(nn.Module):
 
 class InferenceEngine(ls.LitAPI):
     def setup(self, device):
-        s3 = boto3.client("s3")
-        bucket = os.environ["S3_BUCKET"]
-        prefix = os.environ["S3_PREFIX"]
 
-        local_path = "/tmp/model.pth"
-        s3.download_file(bucket, f"{prefix}/model.pth", local_path)
-
+        local_path = "model.pth"
+        
         ckpt = torch.load(local_path, map_location="cpu")
 
         self.in_features = ckpt.get("in_features")
