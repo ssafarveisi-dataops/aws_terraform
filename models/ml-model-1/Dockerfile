@@ -6,9 +6,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Disable Python downloads, because we want to use the system interpreter
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 UV_NATIVE_TLS=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
 # Use Zscaler certificate when BUILD_ENV is 'local'. This must be set when building locally.
