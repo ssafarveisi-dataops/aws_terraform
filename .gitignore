@@ -11,3 +11,4 @@ wheels/
 .terraform
 *.ipynb
 *.log
+models.yaml
