@@ -164,7 +164,7 @@ jobs:
             SERVICE_NAME: "${{ matrix.name }}-poc-deployment-service"
             ECS_CLUSTER: ${{ env.ECS_CLUSTER }}
           run: |
-            ecspresso deploy --config ecspresso.yaml --wait-until="stable" 
+            ecspresso deploy --config ecspresso.yaml 
         
         - name: Send Slack Notification (success)
           if: ${{ success() && steps.deploy-ecs-task.outcome == 'success' }}
