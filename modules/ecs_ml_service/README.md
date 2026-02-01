@@ -37,6 +37,7 @@ No modules.
 | <a name="input_app_port"></a> [app\_port](#input\_app\_port) | FastAPI server port | `number` | n/a | yes |
 | <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region | `string` | n/a | yes |
 | <a name="input_ecs_cluster_id"></a> [ecs\_cluster\_id](#input\_ecs\_cluster\_id) | ID for the ECS cluster | `string` | n/a | yes |
+| <a name="input_fastapi_root_path"></a> [fastapi\_root\_path](#input\_fastapi\_root\_path) | The root path for the FastAPI app | `string` | n/a | yes |
 | <a name="input_lb_listener_arn"></a> [lb\_listener\_arn](#input\_lb\_listener\_arn) | ARN for the ALB listener | `string` | n/a | yes |
 | <a name="input_listener_rule_priority"></a> [listener\_rule\_priority](#input\_listener\_rule\_priority) | Priority for the ALB listener rule | `number` | n/a | yes |
 | <a name="input_litserve_image"></a> [litserve\_image](#input\_litserve\_image) | Litserve image uri | `string` | n/a | yes |
