@@ -6,4 +6,4 @@ service: {{ must_env `SERVICE_NAME` }}
 task_definition: task-definition.template.json
 
 # how long ecspresso waits for stability
-timeout: 5m
+timeout: 10m

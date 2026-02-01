@@ -164,6 +164,7 @@ jobs:
             SERVICE_NAME: "${{ matrix.name }}-poc-deployment-service"
             ECS_CLUSTER: ${{ env.ECS_CLUSTER }}
           run: |
+            # By default, it waits for service stability (timeout is set in config file)
             ecspresso deploy --config ecspresso.yaml 
         
         - name: Send Slack Notification (success)
