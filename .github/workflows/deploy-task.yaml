@@ -201,6 +201,7 @@ jobs:
             cat "$OUT"
 
         - name: Deploy Amazon ECS Task Definition
+          id: deploy-ecs-task
           uses: aws-actions/amazon-ecs-deploy-task-definition@v2
           with:
             task-definition: ${{ steps.render-taskdef.outputs.taskdef }}
@@ -208,6 +209,50 @@ jobs:
             cluster: ${{ env.ECS_CLUSTER }}
             wait-for-service-stability: true
             wait-for-minutes: 20
+        
+        - name: Send Slack Notification (success)
+          if: ${{ success() && steps.deploy-ecs-task.outcome == 'success' }}
+          uses: slackapi/slack-github-action@v2.0.0
+          with:
+            method: chat.postMessage
+            token: ${{ secrets.SLACK_BOT_TOKEN }}
+            payload: |
+              {
+                "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+                "text": "✅ 🚀 ECS deployment successful: *${{ matrix.name }}*",
+                "attachments": [
+                  {
+                    "color": "2EB67D",
+                    "fields": [
+                      { "title": "Cluster", "value": "${{ env.ECS_CLUSTER }}", "short": true },
+                      { "title": "Service", "value": "${{ matrix.name }}-poc-deployment-service", "short": true },
+                      { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                    ]
+                  }
+                ]
+              }
+
+        - name: Send Slack Notification (failure)
+          if: ${{ always() && steps.deploy-ecs-task.outcome == 'failure' }}
+          uses: slackapi/slack-github-action@v2.0.0
+          with:
+            method: chat.postMessage
+            token: ${{ secrets.SLACK_BOT_TOKEN }}
+            payload: |
+              {
+                "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+                "text": "❌ ECS deployment failed: *${{ matrix.name }}*",
+                "attachments": [
+                  {
+                    "color": "E01E5A",
+                    "fields": [
+                      { "title": "Cluster", "value": "${{ env.ECS_CLUSTER }}", "short": true },
+                      { "title": "Service", "value": "${{ matrix.name }}-poc-deployment-service", "short": true },
+                      { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                    ]
+                  }
+                ]
+              }
 
         - name: Log deployment
           if: always()
