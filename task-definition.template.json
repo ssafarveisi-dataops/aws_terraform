@@ -1,7 +1,7 @@
 {
-  "family": "FAMILY",
-  "taskRoleArn": "TASK_ROLE_ARN",
-  "executionRoleArn": "EXEC_ROLE_ARN",
+  "family": "{{ must_env `FAMILY` }}",
+  "taskRoleArn": "{{ must_env `TASK_ROLE_ARN` }}",
+  "executionRoleArn": "{{ must_env `EXEC_ROLE_ARN` }}",
   "networkMode": "awsvpc",
   "placementConstraints": [],
   "requiresCompatibilities": ["FARGATE"],
@@ -14,7 +14,7 @@
   "containerDefinitions": [
     {
       "name": "litserve-container",
-      "image": "IMAGE",
+      "image": "{{ must_env `IMAGE` }}",
       "command": [],
       "portMappings": [
         {
@@ -38,22 +38,22 @@
       "environment": [
         {
             "name": "S3_BUCKET",
-            "value": "VALUE"
+            "value": "{{ must_env `S3_BUCKET` }}"
         },
         {
             "name": "S3_PREFIX",
-            "value": "VALUE"
+            "value": "{{ must_env `S3_PREFIX` }}"
         },
         {
           "name": "ROOT_PATH",
-          "value": "VALUE"
+          "value": "{{ must_env `ROOT_PATH` }}"
         }
       ],
       "secrets": [],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "LOG_GROUP",
+          "awslogs-group": "{{ must_env `LOG_GROUP` }}",
           "mode": "non-blocking",
           "max-buffer-size": "25m",
           "awslogs-region": "eu-central-1",
