@@ -162,6 +162,10 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
         {
           name  = "S3_PREFIX"
           value = "${var.s3_prefix}"
+        },
+        {
+          name  = "ROOT_PATH"
+          value = "${var.fastapi_root_path}"
         }
       ]
 

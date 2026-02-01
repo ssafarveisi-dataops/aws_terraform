@@ -43,6 +43,10 @@
         {
             "name": "S3_PREFIX",
             "value": "VALUE"
+        },
+        {
+          "name": "ROOT_PATH",
+          "value": "VALUE"
         }
       ],
       "secrets": [],

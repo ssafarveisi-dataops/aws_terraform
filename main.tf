@@ -128,9 +128,10 @@ module "ecs_service" {
   lb_listener_arn        = aws_lb_listener.lb_listener.arn
   listener_rule_priority = each.value.routing.priority
   aws_region             = var.aws_region
-  app_port               = 8080 # This is fixed among different services
+  app_port               = 8080 # Contract: This is fixed among different services
   ecs_cluster_id         = aws_ecs_cluster.ecs_cluster.id
   litserve_image         = each.value.container.litserve_image
   s3_bucket              = each.value.artifacts.s3_bucket
   s3_prefix              = replace(each.key, "_", "-") # Contract: S3 prefix is the same as resource_prefix
+  fastapi_root_path      = replace(each.key, "_", "-") # Contract: The fastAPI root path is the same as resource_prefix
 }

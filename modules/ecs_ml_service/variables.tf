@@ -57,3 +57,8 @@ variable "s3_prefix" {
   description = "S3 key for the stored artifact"
   type        = string
 }
+
+variable "fastapi_root_path" {
+  description = "The root path for the FastAPI app"
+  type        = string
+}
