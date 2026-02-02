@@ -4,7 +4,7 @@ FROM python:${PYTHON_VERSION}-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Disable Python downloads, because we want to use the system interpreter
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 UV_NATIVE_TLS=1 DEBIAN_FRONTEND=noninteractive
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 UV_NATIVE_TLS=1
 
 
 WORKDIR /app
@@ -39,6 +39,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM python:${PYTHON_VERSION}-slim
 
+ENV DEBIAN_FRONTEND=noninteractive
+
+# The Python slim image does not come with curl (necessary for ECS container health check)
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
     
