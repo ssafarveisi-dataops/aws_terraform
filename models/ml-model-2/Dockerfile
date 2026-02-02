@@ -4,7 +4,7 @@ FROM python:${PYTHON_VERSION}-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Disable Python downloads, because we want to use the system interpreter
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 UV_NATIVE_TLS=1
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 UV_NATIVE_TLS=1 DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
