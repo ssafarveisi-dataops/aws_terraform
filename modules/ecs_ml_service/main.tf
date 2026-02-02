@@ -1,8 +1,3 @@
-locals {
-  is_placeholder_image = var.litserve_image == "PLACEHOLDER"
-  placeholder_image    = "hashicorp/http-echo:latest"
-}
-
 resource "aws_cloudwatch_log_group" "litserve_logs" {
   name              = "${var.resource_prefix}-litserve-logs"
   retention_in_days = 1
@@ -133,7 +128,7 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
   container_definitions = jsonencode([
     {
       name      = "litserve-container"
-      image     = local.is_placeholder_image ? local.placeholder_image : "${var.litserve_image}"
+      image     = var.litserve_image == "PLACEHOLDER" ? "hashicorp/http-echo:latest" : "${var.litserve_image}"
       essential = true
       portMappings = [
         {
@@ -142,8 +137,8 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
           appProtocol   = "http"
         }
       ]
-      command = local.is_placeholder_image ? ["-listen=:${var.app_port}"] : null
-      healthCheck = local.is_placeholder_image ? null : {
+      command = var.litserve_image == "PLACEHOLDER" ? ["-listen=:${var.app_port}"] : null
+      healthCheck = var.litserve_image == "PLACEHOLDER" ? null : {
         command = [
           "CMD-SHELL",
           "curl -f http://localhost:${var.app_port}/health || exit 1"
