@@ -1,9 +1,0 @@
-region: {{ must_env `AWS_REGION` }}
-cluster: {{ must_env `ECS_CLUSTER` }}
-service: {{ must_env `SERVICE_NAME` }}
-
-# ecspresso will render this template and register the task definition
-task_definition: task-definition.template.json
-
-# how long ecspresso waits for stability
-timeout: 10m
