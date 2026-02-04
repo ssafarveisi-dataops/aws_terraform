@@ -179,11 +179,14 @@ resource "aws_ecs_task_definition" "ecs_task_definition" {
 }
 
 resource "aws_ecs_service" "ecs_service" {
-  name                 = "${var.resource_prefix}-poc-deployment-service"
-  cluster              = var.ecs_cluster_id
-  task_definition      = aws_ecs_task_definition.ecs_task_definition.arn
-  desired_count        = 1
-  force_new_deployment = true
+  name                               = "${var.resource_prefix}-poc-deployment-service"
+  cluster                            = var.ecs_cluster_id
+  task_definition                    = aws_ecs_task_definition.ecs_task_definition.arn
+  desired_count                      = 1
+  health_check_grace_period_seconds  = 120
+  force_new_deployment               = true
+  wait_for_steady_state              = false
+  deployment_minimum_healthy_percent = 100
 
   network_configuration {
     subnets          = var.public_subnet_list
@@ -202,6 +205,7 @@ resource "aws_ecs_service" "ecs_service" {
   lifecycle {
     ignore_changes = [
       task_definition, # <- critical: deployment pipeline owns this
+      desired_count
     ]
   }
 }
