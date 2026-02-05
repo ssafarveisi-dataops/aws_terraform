@@ -24,6 +24,14 @@ aws_capture() {
   printf "%s" "$out"
 }
 
+cleanup_temp_files() {
+  rm -f ecs-container-definitions.json \
+        ecs-task-s3-policy.json \
+        ecs-task-trust.json
+
+  log "Cleaned up temporary ECS JSON files"
+}
+
 wait_for_sg_detach() {
   local sg_id="$1"
   local timeout_seconds="${2:-180}"   # default: 3 minutes
@@ -172,7 +180,7 @@ create_ecs_task_role() {
 
 attach_ecs_task_s3_policy() {
   local prefix="$1"
-  local bucket="$2"
+  local s3_bucket="$2"
   local s3_prefix="$3"
 
   local role_name="${prefix}-poc-deployment-task-role"
@@ -186,7 +194,7 @@ attach_ecs_task_s3_policy() {
       "Sid": "ListBucket",
       "Effect": "Allow",
       "Action": "s3:ListBucket",
-      "Resource": "arn:aws:s3:::${bucket}"
+      "Resource": "arn:aws:s3:::${s3_bucket}"
     },
     {
       "Sid": "ReadObjects",
@@ -196,7 +204,7 @@ attach_ecs_task_s3_policy() {
         "s3:GetObjectVersion",
         "s3:GetObjectTagging"
       ],
-      "Resource": "arn:aws:s3:::${bucket}/${s3_prefix}/*"
+      "Resource": "arn:aws:s3:::${s3_bucket}/${s3_prefix}/*"
     }
   ]
 }
@@ -604,7 +612,7 @@ deregister_task_definitions_for_family() {
 
 create_all_resources() {
   local prefix="$1"
-  local bucket="$2"
+  local s3_bucket="$2"
   local s3_prefix="$3"
   local vpc_id="$4"
   local app_port="$5"
@@ -618,7 +626,7 @@ create_all_resources() {
   local fastapi_root_path="${13}"
 
   require_nonempty "prefix" "${prefix}"
-  require_nonempty "bucket" "${bucket}"
+  require_nonempty "s3_bucket" "${s3_bucket}"
   require_nonempty "s3_prefix" "${s3_prefix}"
   require_nonempty "vpc_id" "${vpc_id}"
   require_nonempty "app_port" "${app_port}"
@@ -639,7 +647,7 @@ create_all_resources() {
   log_group_name="$(create_log_group "$prefix")"
   execution_role_arn="$(create_ecs_task_execution_role "$prefix")"
   task_role_arn="$(create_ecs_task_role "$prefix")"
-  task_role_name="$(attach_ecs_task_s3_policy "$prefix" "$bucket" "$s3_prefix")"
+  task_role_name="$(attach_ecs_task_s3_policy "$prefix" "$s3_bucket" "$s3_prefix")"
 
   ecs_sg_id="$(create_ecs_security_group "$prefix" "$vpc_id" "$app_port" "$alb_sg_id")"
   tg_arn="$(create_alb_target_group "$prefix" "$vpc_id" "$app_port")"
@@ -652,7 +660,7 @@ create_all_resources() {
     "$execution_role_arn" \
     "$app_port" \
     "$litserve_image" \
-    "$bucket" \
+    "$s3_bucket" \
     "$s3_prefix" \
     "$fastapi_root_path" \
     "$log_group_name" \
@@ -672,6 +680,8 @@ create_all_resources() {
 
   log "All resources created successfully"
 
+  cleanup_temp_files
+  
   # RETURN (stdout): key=value block for easy consumption
   echo "LOG_GROUP_NAME=${log_group_name}"
   echo "EXECUTION_ROLE_ARN=${execution_role_arn}"

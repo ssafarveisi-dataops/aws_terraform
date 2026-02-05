@@ -1,0 +1,158 @@
+name: Create/Destroy infra for model
+
+on:
+  push:
+    tags:
+      - "create_*"
+      - "destroy_*"
+
+jobs:
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v5
+
+        - name: Parse tag and load config
+          id: parse
+          shell: bash
+          run: |
+            set -euo pipefail
+
+            TAG="${GITHUB_REF_NAME}"
+            echo "INFO: Tag: ${TAG}"
+
+            # -------------------------------------------------------------
+            # Parse tag of form: create_<model_dir>_<version>
+            #                    destroy_<model_dir>_<version>
+            # -------------------------------------------------------------
+            ACTION="${TAG%%_*}"   # first token before first "_"
+            REST="${TAG#*_}"      # everything after first "_"
+            VERSION="${REST##*_}" # last token after last "_"
+            MODEL_DIR="${REST%_*}" # everything between action and version
+
+            # Validate action
+            if [[ "${ACTION}" != "create" && "${ACTION}" != "destroy" ]]; then
+            echo "ERROR: Action must be create or destroy. Got: ${ACTION}" >&2
+            exit 1
+            fi
+
+            # Validate model directory
+            if [[ -z "${MODEL_DIR}" || "${MODEL_DIR}" == "${REST}" ]]; then
+            echo "ERROR: Could not parse model directory from tag: ${TAG}" >&2
+            exit 1
+            fi
+
+            CONFIG_PATH="models_config/${MODEL_DIR}/config.yaml"
+            if [[ ! -f "${CONFIG_PATH}" ]]; then
+            echo "ERROR: Config not found at: ${CONFIG_PATH}" >&2
+            exit 1
+            fi
+
+            # -------------------------------------------------------------
+            # Extract values using yq
+            # -------------------------------------------------------------
+            LITSERVE_IMAGE="$(yq -r '.container.litserve_image' "${CONFIG_PATH}")"
+            S3_BUCKET="$(yq -r '.artifacts.s3_bucket' "${CONFIG_PATH}")"
+            S3_PREFIX="$(yq -r '.artifacts.s3_prefix' "${CONFIG_PATH}")"
+            APP_PORT="$(yq -r '.app.port_mapping.port' "${CONFIG_PATH}")"
+            PRIORITY="$(yq -r '.routing.priority' "${CONFIG_PATH}")"
+
+            # -------------------------------------------------------------
+            # Validate extracted values (not null/empty)
+            # -------------------------------------------------------------
+            validate_not_empty() {
+            local name="$1"
+            local value="$2"
+            if [[ -z "$value" || "$value" == "null" ]]; then
+                echo "ERROR: ${name} is missing or empty in YAML (${CONFIG_PATH})" >&2
+                exit 1
+            fi
+            }
+
+            validate_not_empty "container.litserve_image" "$LITSERVE_IMAGE"
+            validate_not_empty "artifacts.s3_bucket" "$S3_BUCKET"
+            validate_not_empty "artifacts.s3_prefix" "$S3_PREFIX"
+            validate_not_empty "app.port_mapping.port" "$APP_PORT"
+            validate_not_empty "routing.priority" "$PRIORITY"
+
+            # Additional rule: s3_prefix must NOT start or end with "/"
+            if [[ "$S3_PREFIX" == /* || "$S3_PREFIX" == */ ]]; then
+            echo "ERROR: artifacts.s3_prefix cannot start or end with '/': ${S3_PREFIX}" >&2
+            exit 1
+            fi
+
+            # -------------------------------------------------------------
+            # Output values for later workflow steps
+            # -------------------------------------------------------------
+            {
+            echo "action=${ACTION}"
+            echo "model_dir=${MODEL_DIR}"
+            echo "version=${VERSION}"
+            echo "config_path=${CONFIG_PATH}"
+            echo "litserve_image=${LITSERVE_IMAGE}"
+            echo "s3_bucket=${S3_BUCKET}"
+            echo "s3_prefix=${S3_PREFIX}"
+            echo "app_port=${APP_PORT}"
+            echo "priority=${PRIORITY}"
+            echo "prefix=${MODEL_DIR}"
+            } >> "$GITHUB_OUTPUT"
+
+            echo "INFO: Successfully parsed configuration for model '${MODEL_DIR}'"
+
+        # - name: Create resources
+        #   if: steps.parse.outputs.action == 'create'
+        #   shell: bash
+        #   env:
+        #     VPC_ID: ${{ vars.VPC_ID }}
+        #     APP_PORT: ${{ vars.APP_PORT }}
+        #     ALB_SG_ID: ${{ vars.ALB_SG_ID }}
+        #     LISTENER_ARN: ${{ vars.LISTENER_ARN }}
+        #     ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
+        #     SUBNETS_CSV: ${{ vars.SUBNETS_CSV }}
+        #     AWS_REGION: ${{ vars.AWS_REGION }}
+        #     FASTAPI_ROOT_PATH: ${{ vars.FASTAPI_ROOT_PATH }}
+        #   run: |
+        #     set -euo pipefail
+
+        #     PREFIX="${{ steps.parse.outputs.model_dir }}"
+        #     LITSERVE_IMAGE="${{ steps.parse.outputs.litserve_image }}"
+        #     S3_BUCKET="${{ steps.parse.outputs.s3_bucket }}"
+        #     S3_PREFIX="${{ steps.parse.outputs.s3_prefix }}"
+        #     PRIORITY="${{ steps.parse.outputs.priority }}"
+
+        #     FASTAPI_ROOT_PATH="${FASTAPI_ROOT_PATH:-${PREFIX}}"
+
+        #     ./create_resources.sh create \
+        #     "${PREFIX}" \
+        #     "${S3_BUCKET}" \
+        #     "${S3_PREFIX}" \
+        #     "${VPC_ID}" \
+        #     "${APP_PORT}" \
+        #     "${ALB_SG_ID}" \
+        #     "${LISTENER_ARN}" \
+        #     "${PRIORITY}" \
+        #     "${ECS_CLUSTER_ID}" \
+        #     "${SUBNETS_CSV}" \
+        #     "${AWS_REGION}" \
+        #     "${LITSERVE_IMAGE}" \
+        #     "${FASTAPI_ROOT_PATH}"
+
+        # - name: Destroy resources
+        #   if: steps.parse.outputs.action == 'destroy'
+        #   shell: bash
+        #   env:
+        #     VPC_ID: ${{ vars.VPC_ID }}
+        #     LISTENER_ARN: ${{ vars.LISTENER_ARN }}
+        #     ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
+        #   run: |
+        #     set -euo pipefail
+
+        #     PREFIX="${{ steps.parse.outputs.model_dir }}"
+        #     PRIORITY="${{ steps.parse.outputs.priority }}"
+
+        #     ./create_resources.sh destroy \
+        #     "${PREFIX}" \
+        #     "${VPC_ID}" \
+        #     "${LISTENER_ARN}" \
+        #     "${PRIORITY}" \
+        #     "${ECS_CLUSTER_ID}"

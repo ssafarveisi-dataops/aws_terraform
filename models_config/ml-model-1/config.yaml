@@ -1,7 +1,10 @@
-ml-model-1: # REMOVE if POC is not required anymore
-  container:
-    litserve_image: PLACEHOLDER # When the first time an ECS service and task is created
-  artifacts:
-    s3_bucket: dataops-poc-deployment
-  routing:
-    priority: 10
+container:
+  litserve_image: PLACEHOLDER # When the first time an ECS service and task is created
+artifacts:
+  s3_bucket: dataops-poc-deployment
+  s3_prefix: ml-model-1 # Or a/b/c (no leading or trailing / and a, b and c are folders)
+app:
+  port_mapping: 
+    port: 8080 # Default
+routing:
+  priority: 10
