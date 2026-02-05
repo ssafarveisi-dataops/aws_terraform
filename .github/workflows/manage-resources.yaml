@@ -7,7 +7,7 @@ on:
       - "destroy_*"
 
 env:
-    AWS_REGION: "eu-central-1"
+  AWS_REGION: "eu-central-1"
 
 permissions:
   id-token: write
