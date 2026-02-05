@@ -63,6 +63,7 @@ jobs:
             S3_PREFIX="$(yq -r '.artifacts.s3_prefix' "${CONFIG_PATH}")"
             APP_PORT="$(yq -r '.app.port_mapping.port' "${CONFIG_PATH}")"
             PRIORITY="$(yq -r '.routing.priority' "${CONFIG_PATH}")"
+            CONF_VERSION="$(yq -r '.version' "${CONFIG_PATH}")"
 
             # -------------------------------------------------------------
             # Validate extracted values (not null/empty)
@@ -81,6 +82,17 @@ jobs:
             validate_not_empty "artifacts.s3_prefix" "$S3_PREFIX"
             validate_not_empty "app.port_mapping.port" "$APP_PORT"
             validate_not_empty "routing.priority" "$PRIORITY"
+            validate_not_empty "version" "$CONF_VERSION"
+            
+            # If this is a CREATE action, the version in the tag must match the version in config.yaml
+            if [[ "${ACTION}" == "create" ]]; then
+              if [[ "${CONF_VERSION}" != "${VERSION}" ]]; then
+                echo "ERROR: Version mismatch:"
+                echo "  - Tag version:     ${VERSION}"
+                echo "  - Config version:  ${CONF_VERSION}"
+                exit 1
+              fi
+            fi
 
             # Additional rule: s3_prefix must NOT start or end with "/"
             if [[ "$S3_PREFIX" == /* || "$S3_PREFIX" == */ ]]; then

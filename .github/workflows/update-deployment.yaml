@@ -1,0 +1,289 @@
+name: Update task definition
+
+on:
+  push:
+    tags:
+      - "update_*"
+
+env:
+  AWS_REGION: "eu-central-1"
+  ECS_CLUSTER: "poc-deployment-cluster"
+  ECR_REPOSITORY: dataops-poc-deployment
+  
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-task:
+    name: Deploy Task manifest file
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      # -------------------------------
+      # Parse tag -> model directory + version
+      # Tag format: update_<model_dir>_<version>
+      # Example: update_torch-regressor_v1.2.3
+      # -------------------------------
+      - name: Parse tag and load model config
+        id: parse
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+          echo "INFO: Tag: ${TAG}"
+
+          ACTION="${TAG%%_*}"      # update
+          REST="${TAG#*_}"         # <model_dir>_<version>
+          VERSION="${REST##*_}"    # last token
+          MODEL_DIR="${REST%_*}"   # everything between
+
+          if [[ "${ACTION}" != "update" ]]; then
+            echo "ERROR: This workflow only supports update_ tags. Got: ${ACTION}" >&2
+            exit 1
+          fi
+
+          # Only check the directory is parsable
+          if [[ -z "${MODEL_DIR}" || "${MODEL_DIR}" == "${REST}" ]]; then
+            echo "ERROR: Could not parse model directory from tag: ${TAG}" >&2
+            echo "Expected: update_<model_dir>_<version>" >&2
+            exit 1
+          fi
+
+          MODEL_PATH="models/${MODEL_DIR}"
+          CONFIG_PATH="models_config/${MODEL_DIR}/config.yaml"
+          DOCKERFILE_PATH="${MODEL_PATH}/Dockerfile"
+          PYTHON_VERSION_FILE="${MODEL_PATH}/.python-version"
+          PYPROJECT="${MODEL_PATH}/pyproject.toml"
+          UV_LOCK_FILE="${MODEL_PATH}/uv.lock"
+          SRC_FOLDER="${MODEL_PATH}/src"
+
+          # Check required files and directories exist (separate from parsing)
+          [[ -f "${DOCKERFILE_PATH}" ]] || { echo "ERROR: Missing Dockerfile at ${DOCKERFILE_PATH}" >&2; exit 1; }
+          [[ -f "${PYTHON_VERSION_FILE}" ]] || { echo "ERROR: Missing .python-version at ${PYTHON_VERSION_FILE}" >&2; exit 1; }
+          [[ -f "${CONFIG_PATH}" ]] || { echo "ERROR: Missing config.yaml at ${CONFIG_PATH}" >&2; exit 1; }
+          [[ -f "${PYPROJECT}" ]] || { echo "ERROR: Missing pyproject.toml at ${PYPROJECT}" >&2; exit 1; }
+          [[ -f "${UV_LOCK_FILE}" ]] || { echo "ERROR: Missing uv lock file at ${UV_LOCK_FILE}" >&2; exit 1; }
+          [[ -d "${SRC_FOLDER}" ]] || { echo "ERROR: Missing src folder at ${SRC_FOLDER}" >&2; exit 1; }
+
+          # Extract config values via yq
+          S3_BUCKET="$(yq -r '.artifacts.s3_bucket' "${CONFIG_PATH}")"
+          S3_PREFIX="$(yq -r '.artifacts.s3_prefix' "${CONFIG_PATH}")"
+        
+          # Extract version from pyproject.toml (Poetry-style)
+          PROJECT_VERSION="$(grep -E '^[[:space:]]*version[[:space:]]*=' "$PYPROJECT" | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')"
+
+          # Read python version
+          PYTHON_VERSION="$(head -n 1 "$PYTHON_VERSION_FILE" | tr -d '[:space:]')"
+
+          validate_not_empty() {
+            local name="$1"
+            local value="$2"
+            if [[ -z "$value" || "$value" == "null" ]]; then
+                echo "ERROR: '${name}' is missing or empty." >&2
+                exit 1
+            fi
+          }
+
+          validate_not_empty "s3_bucket" "$S3_BUCKET"
+          validate_not_empty "s3_prefix" "$S3_PREFIX"
+          validate_not_empty "python-version" "$PYTHON_VERSION"
+          validate_not_empty "project-version" "$PROJECT_VERSION"
+          
+          # The version in the tag must match the version in pyproject.toml
+          if [[ "${PROJECT_VERSION}" != "${VERSION}" ]]; then
+            echo "ERROR: Version mismatch:"
+            echo "  - Tag version:      ${VERSION}"
+            echo "  - Project version:  ${PROJECT_VERSION}"
+            exit 1
+          fi
+
+          # Additional rule: s3_prefix must not have leading/trailing "/"
+          if [[ "$S3_PREFIX" == /* || "$S3_PREFIX" == */ ]]; then
+            echo "ERROR: artifacts.s3_prefix must not have leading/trailing '/': $S3_PREFIX" >&2
+            exit 1
+          fi
+
+          {
+            echo "model_dir=${MODEL_DIR}"
+            echo "model_path=${MODEL_PATH}"
+            echo "dockerfile_path=${DOCKERFILE_PATH}"
+            echo "python_version=${PYTHON_VERSION}"
+            echo "s3_bucket=${S3_BUCKET}"
+            echo "s3_prefix=${S3_PREFIX}"
+            echo "fastapi_root_path=${MODEL_DIR}"
+            echo "project_version=${PROJECT_VERSION}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "INFO: Parsed model=${MODEL_DIR}, version=${VERSION}"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get AWS Account ID
+        id: get-account
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID="$(aws sts get-caller-identity --query "Account" --output text)"
+          echo "account=$ACCOUNT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Login to AWS ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Setup Docker Buildx
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx create --use
+
+      - name: Build and Push Image
+        id: build-push-image
+        shell: bash
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ steps.parse.outputs.model_dir }}-${{ steps.parse.outputs.project_version }}
+          DOCKERFILE_PATH: ${{ steps.parse.outputs.dockerfile_path }}
+          BUILD_CONTEXT: ${{ steps.parse.outputs.model_path }}
+          PYTHON_VERSION: ${{ steps.parse.outputs.python_version }}
+        run: |
+          set -euo pipefail
+          echo "INFO: Building and pushing: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+          docker buildx build \
+            --file "$DOCKERFILE_PATH" \
+            --tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            --platform linux/amd64 \
+            --build-arg PYTHON_VERSION="$PYTHON_VERSION" \
+            --push \
+            "$BUILD_CONTEXT"
+
+          echo "INFO: Image pushed successfully."
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      # ------------------------------------------------------------
+      # Render ECS task definition from template using jq
+      # ------------------------------------------------------------
+      - name: Render ECS task definition
+        id: render-taskdef
+        shell: bash
+        env:
+          FAMILY: ${{ steps.parse.outputs.model_dir }}-poc-deployment-task
+          TASK_ROLE_ARN: arn:aws:iam::${{ steps.get-account.outputs.account }}:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-role
+          EXEC_ROLE_ARN: arn:aws:iam::${{ steps.get-account.outputs.account }}:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-execution-role
+          IMAGE: ${{ steps.build-push-image.outputs.image }}
+          S3_BUCKET: ${{ steps.parse.outputs.s3_bucket }}
+          S3_PREFIX: ${{ steps.parse.outputs.s3_prefix }}
+          ROOT_PATH: ${{ steps.parse.outputs.root_path }}
+          LOG_GROUP: ${{ steps.parse.outputs.model_dir }}-litserve-logs
+          AWS_REGION: ${{ env.AWS_REGION }}
+        run: |
+          set -euo pipefail
+
+          TEMPLATE="task-definition.template.json"
+          OUT="task-definition.json"
+
+          [[ -f "$TEMPLATE" ]] || { echo "ERROR: Missing template: $TEMPLATE" >&2; exit 1; }
+
+          # (infra pipeline handles PLACEHOLDER separately; update pipeline deploys real image.)
+          jq \
+            --arg family "$FAMILY" \
+            --arg taskRoleArn "$TASK_ROLE_ARN" \
+            --arg executionRoleArn "$EXEC_ROLE_ARN" \
+            --arg image "$IMAGE" \
+            --arg s3_bucket "$S3_BUCKET" \
+            --arg s3_prefix "$S3_PREFIX" \
+            --arg root_path "$ROOT_PATH" \
+            --arg log_group "$LOG_GROUP" \
+            --arg region "$AWS_REGION" \
+            '
+            .family = $family
+            | .taskRoleArn = $taskRoleArn
+            | .executionRoleArn = $executionRoleArn
+            | .containerDefinitions[0].image = $image
+            | (.containerDefinitions[0].environment |=
+                map(
+                  if .name == "S3_BUCKET" then .value = $s3_bucket
+                  elif .name == "S3_PREFIX" then .value = $s3_prefix
+                  elif .name == "ROOT_PATH" then .value = $root_path
+                  else .
+                  end
+                )
+              )
+            | .containerDefinitions[0].logConfiguration.options["awslogs-group"] = $log_group
+            | .containerDefinitions[0].logConfiguration.options["awslogs-region"] = $region
+            ' "$TEMPLATE" > "$OUT"
+
+          echo "taskdef=$OUT" >> "$GITHUB_OUTPUT"
+          echo "INFO: Rendered $OUT"
+          cat "$OUT"
+
+      - name: Deploy Amazon ECS Task Definition
+        id: deploy-ecs-task
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-taskdef.outputs.taskdef }}
+          service: ${{ steps.parse.outputs.model_dir }}-poc-deployment-service
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 20
+
+      - name: Send Slack Notification (success)
+        if: ${{ success() && steps.deploy-ecs-task.outcome == 'success' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+              "text": "✅ 🚀 ECS deployment successful: *${{ steps.parse.outputs.model_dir }}*",
+              "attachments": [
+                {
+                  "color": "2EB67D",
+                  "fields": [
+                    { "title": "Cluster", "value": "${{ env.ECS_CLUSTER }}", "short": true },
+                    { "title": "Service", "value": "${{ steps.parse.outputs.model_dir }}-poc-deployment-service", "short": true },
+                    { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                  ]
+                }
+              ]
+            }
+
+      - name: Send Slack Notification (failure)
+        if: ${{ always() && steps.deploy-ecs-task.outcome == 'failure' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+              "text": "❌ ECS deployment failed: *${{ steps.parse.outputs.model_dir }}*",
+              "attachments": [
+                {
+                  "color": "E01E5A",
+                  "fields": [
+                    { "title": "Cluster", "value": "${{ env.ECS_CLUSTER }}", "short": true },
+                    { "title": "Service", "value": "${{ steps.parse.outputs.model_dir }}-poc-deployment-service", "short": true },
+                    { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                  ]
+                }
+              ]
+            }
+
+      - name: Clean up Docker
+        if: always()
+        run: docker system prune --all --force
