@@ -117,7 +117,7 @@ jobs:
             echo "python_version=${PYTHON_VERSION}"
             echo "s3_bucket=${S3_BUCKET}"
             echo "s3_prefix=${S3_PREFIX}"
-            echo "fastapi_root_path=${MODEL_DIR}"
+            echo "root_path=${MODEL_DIR}"
             echo "project_version=${PROJECT_VERSION}"
           } >> "$GITHUB_OUTPUT"
 
