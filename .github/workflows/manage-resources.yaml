@@ -86,7 +86,7 @@ jobs:
             
             # If this is a CREATE action, the version in the tag must match the version in config.yaml
             if [[ "${ACTION}" == "create" ]]; then
-              if [[ "${CONF_VERSION}" != "${VERSION}" ]]; then
+              if [[ "v${CONF_VERSION}" != "${VERSION}" ]]; then
                 echo "ERROR: Version mismatch:"
                 echo "  - Tag version:     ${VERSION}"
                 echo "  - Config version:  ${CONF_VERSION}"

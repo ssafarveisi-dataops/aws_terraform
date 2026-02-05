@@ -9,7 +9,7 @@ env:
   AWS_REGION: "eu-central-1"
   ECS_CLUSTER: "poc-deployment-cluster"
   ECR_REPOSITORY: dataops-poc-deployment
-  
+
 permissions:
   id-token: write
   contents: read
@@ -97,7 +97,7 @@ jobs:
           validate_not_empty "project-version" "$PROJECT_VERSION"
           
           # The version in the tag must match the version in pyproject.toml
-          if [[ "${PROJECT_VERSION}" != "${VERSION}" ]]; then
+          if [[ "v${PROJECT_VERSION}" != "${VERSION}" ]]; then
             echo "ERROR: Version mismatch:"
             echo "  - Tag version:      ${VERSION}"
             echo "  - Project version:  ${PROJECT_VERSION}"
