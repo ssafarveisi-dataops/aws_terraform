@@ -6,6 +6,9 @@ on:
       - "create_*"
       - "destroy_*"
 
+env:
+    AWS_REGION: "eu-central-1"
+
 jobs:
   infra:
     runs-on: ubuntu-latest
@@ -86,8 +89,6 @@ jobs:
             # -------------------------------------------------------------
             {
             echo "action=${ACTION}"
-            echo "model_dir=${MODEL_DIR}"
-            echo "version=${VERSION}"
             echo "config_path=${CONFIG_PATH}"
             echo "litserve_image=${LITSERVE_IMAGE}"
             echo "s3_bucket=${S3_BUCKET}"
@@ -95,64 +96,70 @@ jobs:
             echo "app_port=${APP_PORT}"
             echo "priority=${PRIORITY}"
             echo "prefix=${MODEL_DIR}"
+            echo "fastapi_root_path=${MODEL_DIR}"
             } >> "$GITHUB_OUTPUT"
 
             echo "INFO: Successfully parsed configuration for model '${MODEL_DIR}'"
 
-        # - name: Create resources
-        #   if: steps.parse.outputs.action == 'create'
-        #   shell: bash
-        #   env:
-        #     VPC_ID: ${{ vars.VPC_ID }}
-        #     APP_PORT: ${{ vars.APP_PORT }}
-        #     ALB_SG_ID: ${{ vars.ALB_SG_ID }}
-        #     LISTENER_ARN: ${{ vars.LISTENER_ARN }}
-        #     ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
-        #     SUBNETS_CSV: ${{ vars.SUBNETS_CSV }}
-        #     AWS_REGION: ${{ vars.AWS_REGION }}
-        #     FASTAPI_ROOT_PATH: ${{ vars.FASTAPI_ROOT_PATH }}
-        #   run: |
-        #     set -euo pipefail
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v5
+          with:
+            role-to-assume: ${{ secrets.ROLE_ARN }}
+            role-session-name: GitHub_to_AWS_via_FederatedOIDC
+            aws-region: ${{ env.AWS_REGION }}
 
-        #     PREFIX="${{ steps.parse.outputs.model_dir }}"
-        #     LITSERVE_IMAGE="${{ steps.parse.outputs.litserve_image }}"
-        #     S3_BUCKET="${{ steps.parse.outputs.s3_bucket }}"
-        #     S3_PREFIX="${{ steps.parse.outputs.s3_prefix }}"
-        #     PRIORITY="${{ steps.parse.outputs.priority }}"
+        - name: Create resources
+          if: steps.parse.outputs.action == 'create'
+          shell: bash
+          env:
+            VPC_ID: ${{ vars.VPC_ID }}
+            ALB_SG_ID: ${{ vars.ALB_SG_ID }}
+            LISTENER_ARN: ${{ vars.LISTENER_ARN }}
+            ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
+            SUBNETS_CSV: ${{ vars.SUBNETS_CSV }}
+            AWS_REGION: ${{ env.AWS_REGION }}
+          run: |
+            set -euo pipefail
 
-        #     FASTAPI_ROOT_PATH="${FASTAPI_ROOT_PATH:-${PREFIX}}"
+            PREFIX="${{ steps.parse.outputs.prefix }}"
+            LITSERVE_IMAGE="${{ steps.parse.outputs.litserve_image }}"
+            S3_BUCKET="${{ steps.parse.outputs.s3_bucket }}"
+            S3_PREFIX="${{ steps.parse.outputs.s3_prefix }}"
+            PRIORITY="${{ steps.parse.outputs.priority }}"
+            APP_PORT="${{ steps.parse.outputs.app_port }}"
+            FASTAPI_ROOT_PATH="${{ steps.parse.outputs.fastapi_root_path }}"
 
-        #     ./create_resources.sh create \
-        #     "${PREFIX}" \
-        #     "${S3_BUCKET}" \
-        #     "${S3_PREFIX}" \
-        #     "${VPC_ID}" \
-        #     "${APP_PORT}" \
-        #     "${ALB_SG_ID}" \
-        #     "${LISTENER_ARN}" \
-        #     "${PRIORITY}" \
-        #     "${ECS_CLUSTER_ID}" \
-        #     "${SUBNETS_CSV}" \
-        #     "${AWS_REGION}" \
-        #     "${LITSERVE_IMAGE}" \
-        #     "${FASTAPI_ROOT_PATH}"
+            ./manage_resources.sh create \
+            "${PREFIX}" \
+            "${S3_BUCKET}" \
+            "${S3_PREFIX}" \
+            "${VPC_ID}" \
+            "${APP_PORT}" \
+            "${ALB_SG_ID}" \
+            "${LISTENER_ARN}" \
+            "${PRIORITY}" \
+            "${ECS_CLUSTER_ID}" \
+            "${SUBNETS_CSV}" \
+            "${AWS_REGION}" \
+            "${LITSERVE_IMAGE}" \
+            "${FASTAPI_ROOT_PATH}"
 
-        # - name: Destroy resources
-        #   if: steps.parse.outputs.action == 'destroy'
-        #   shell: bash
-        #   env:
-        #     VPC_ID: ${{ vars.VPC_ID }}
-        #     LISTENER_ARN: ${{ vars.LISTENER_ARN }}
-        #     ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
-        #   run: |
-        #     set -euo pipefail
+        - name: Destroy resources
+          if: steps.parse.outputs.action == 'destroy'
+          shell: bash
+          env:
+            VPC_ID: ${{ vars.VPC_ID }}
+            LISTENER_ARN: ${{ vars.LISTENER_ARN }}
+            ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
+          run: |
+            set -euo pipefail
 
-        #     PREFIX="${{ steps.parse.outputs.model_dir }}"
-        #     PRIORITY="${{ steps.parse.outputs.priority }}"
+            PREFIX="${{ steps.parse.outputs.prefix }}"
+            PRIORITY="${{ steps.parse.outputs.priority }}"
 
-        #     ./create_resources.sh destroy \
-        #     "${PREFIX}" \
-        #     "${VPC_ID}" \
-        #     "${LISTENER_ARN}" \
-        #     "${PRIORITY}" \
-        #     "${ECS_CLUSTER_ID}"
+            ./manage_resources.sh destroy \
+            "${PREFIX}" \
+            "${VPC_ID}" \
+            "${LISTENER_ARN}" \
+            "${PRIORITY}" \
+            "${ECS_CLUSTER_ID}"
