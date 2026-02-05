@@ -117,29 +117,3 @@ resource "aws_ecs_cluster_capacity_providers" "ecs_providers" {
     weight            = 100
   }
 }
-
-# module "ecs_service" {
-#   for_each = local.models
-#   source   = "./modules/ecs_ml_service"
-
-#   # Normalize the model key once (underscores -> hyphens)
-#   resource_prefix = local.model_id[each.key]
-
-#   vpc_id                 = aws_vpc.main.id
-#   public_subnet_list     = aws_subnet.public_subnets[*].id
-#   alb_security_group_id  = aws_security_group.alb_security_group.id
-#   lb_listener_arn        = aws_lb_listener.lb_listener.arn
-#   listener_rule_priority = each.value.routing.priority
-#   aws_region             = var.aws_region
-
-#   # Contract: fixed port across services
-#   app_port = 8080
-
-#   ecs_cluster_id = aws_ecs_cluster.ecs_cluster.id
-#   litserve_image = each.value.container.litserve_image
-#   s3_bucket      = each.value.artifacts.s3_bucket
-
-#   # Contracts: derived from normalized key
-#   s3_prefix         = local.model_id[each.key]
-#   fastapi_root_path = local.model_id[each.key]
-# }
