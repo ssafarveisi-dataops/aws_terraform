@@ -12,7 +12,7 @@ env:
 permissions:
   id-token: write
   contents: read
-  
+
 jobs:
   infra:
     runs-on: ubuntu-latest

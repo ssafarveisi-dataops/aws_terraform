@@ -681,17 +681,6 @@ create_all_resources() {
   log "All resources created successfully"
 
   cleanup_temp_files
-  
-  # RETURN (stdout): key=value block for easy consumption
-  echo "LOG_GROUP_NAME=${log_group_name}"
-  echo "EXECUTION_ROLE_ARN=${execution_role_arn}"
-  echo "TASK_ROLE_ARN=${task_role_arn}"
-  echo "TASK_ROLE_NAME=${task_role_name}"
-  echo "ECS_SECURITY_GROUP_ID=${ecs_sg_id}"
-  echo "TARGET_GROUP_ARN=${tg_arn}"
-  echo "LISTENER_RULE_ARN=${rule_arn}"
-  echo "TASK_DEFINITION_ARN=${taskdef_arn}"
-  echo "ECS_SERVICE_ARN=${service_arn}"
 }
 
 destroy_all_resources() {
