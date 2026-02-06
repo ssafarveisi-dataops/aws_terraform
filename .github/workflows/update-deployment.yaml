@@ -39,10 +39,10 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           echo "INFO: Tag: ${TAG}"
 
-          ACTION="${TAG%%_*}"      # update
-          REST="${TAG#*_}"         # <model_dir>_<version> (e.g., torch-regressor_v1.2.3)
+          ACTION="${TAG%%_*}"          # update
+          REST="${TAG#*_}"             # <model_dir>_<version> (e.g., torch-regressor_v1.2.3)
           TAG_VERSION="${REST##*_}"    # last token (e.g., v1.2.3)
-          MODEL_DIR="${REST%_*}"   # everything between (e.g., torch-regressor)
+          MODEL_DIR="${REST%_*}"       # everything between (e.g., torch-regressor)
 
           if [[ "${ACTION}" != "update" ]]; then
             echo "ERROR: This workflow only supports update_ tags. Got: ${ACTION}" >&2
