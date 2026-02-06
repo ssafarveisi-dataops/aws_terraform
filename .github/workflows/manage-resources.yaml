@@ -32,10 +32,10 @@ jobs:
             # Parse tag of form: create_<model_dir>_<version>
             #                    destroy_<model_dir>_<version>
             # -------------------------------------------------------------
-            ACTION="${TAG%%_*}"   # first token before first "_"
-            REST="${TAG#*_}"      # everything after first "_"
-            VERSION="${REST##*_}" # last token after last "_"
-            MODEL_DIR="${REST%_*}" # everything between action and version
+            ACTION="${TAG%%_*}"   # first token before first "_" (e.g., create)
+            REST="${TAG#*_}"      # everything after first "_" (e.g., ml-model-1_v0.1.0)
+            VERSION="${REST##*_}" # last token after last "_" (e.g., v0.1.0)
+            MODEL_DIR="${REST%_*}" # everything between action and version (e.g., ml-model-1)
 
             # Validate action
             if [[ "${ACTION}" != "create" && "${ACTION}" != "destroy" ]]; then
