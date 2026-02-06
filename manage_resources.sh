@@ -214,7 +214,6 @@ EOF
     --policy-document file://ecs-task-s3-policy.json >/dev/null
 
   log "Inline S3 policy attached/updated: ${policy_name} -> ${role_name}"
-  echo "${role_name}"
 }
 
 # =============================================================
@@ -640,14 +639,15 @@ create_all_resources() {
   require_nonempty "fastapi_root_path" "${fastapi_root_path}"
 
   # Base resources
-  local log_group_name execution_role_arn task_role_arn task_role_name
+  local log_group_name execution_role_arn task_role_arn
   local ecs_sg_id tg_arn rule_arn
   local taskdef_arn service_arn
 
   log_group_name="$(create_log_group "$prefix")"
   execution_role_arn="$(create_ecs_task_execution_role "$prefix")"
   task_role_arn="$(create_ecs_task_role "$prefix")"
-  task_role_name="$(attach_ecs_task_s3_policy "$prefix" "$s3_bucket" "$s3_prefix")"
+  # Attach a S3 policy to the ECS task role
+  attach_ecs_task_s3_policy "$prefix" "$s3_bucket" "$s3_prefix"
 
   ecs_sg_id="$(create_ecs_security_group "$prefix" "$vpc_id" "$app_port" "$alb_sg_id")"
   tg_arn="$(create_alb_target_group "$prefix" "$vpc_id" "$app_port")"
