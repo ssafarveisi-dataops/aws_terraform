@@ -28,36 +28,43 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
             echo "INFO: Tag: ${TAG}"
 
-            # -------------------------------------------------------------
+            # ------------------------------------------------
             # Parse tag of form: create_<model_dir>_<version>
             #                    destroy_<model_dir>_<version>
-            # -------------------------------------------------------------
+            # ------------------------------------------------
             ACTION="${TAG%%_*}"    # first token before first "_" (e.g., create)
             REST="${TAG#*_}"       # everything after first "_" (e.g., ml-model-1_v0.1.0)
             VERSION="${REST##*_}"  # last token after last "_" (e.g., v0.1.0)
             MODEL_DIR="${REST%_*}" # everything between action and version (e.g., ml-model-1)
-
+            
+            # ---------------
             # Validate action
+            # ---------------
             if [[ "${ACTION}" != "create" && "${ACTION}" != "destroy" ]]; then
             echo "ERROR: Action must be create or destroy. Got: ${ACTION}" >&2
             exit 1
             fi
 
+            # ------------------------  
             # Validate model directory
+            # ------------------------
             if [[ -z "${MODEL_DIR}" || "${MODEL_DIR}" == "${REST}" ]]; then
             echo "ERROR: Could not parse model directory from tag: ${TAG}" >&2
             exit 1
             fi
-
+            
+            # ---------------------------------------------------------------
+            # Check the presence of the config file for the model's resources
+            # ---------------------------------------------------------------
             CONFIG_PATH="models_config/${MODEL_DIR}/config.yaml"
             if [[ ! -f "${CONFIG_PATH}" ]]; then
             echo "ERROR: Config not found at: ${CONFIG_PATH}" >&2
             exit 1
             fi
 
-            # -------------------------------------------------------------
+            # -----------------------
             # Extract values using yq
-            # -------------------------------------------------------------
+            # -----------------------
             LITSERVE_IMAGE="$(yq -r '.container.litserve_image' "${CONFIG_PATH}")"
             S3_BUCKET="$(yq -r '.artifacts.s3_bucket' "${CONFIG_PATH}")"
             S3_PREFIX="$(yq -r '.artifacts.s3_prefix' "${CONFIG_PATH}")"
@@ -65,9 +72,9 @@ jobs:
             PRIORITY="$(yq -r '.routing.priority' "${CONFIG_PATH}")"
             CONF_VERSION="$(yq -r '.version' "${CONFIG_PATH}")"
 
-            # -------------------------------------------------------------
+            # ------------------------------------------
             # Validate extracted values (not null/empty)
-            # -------------------------------------------------------------
+            # ------------------------------------------
             validate_not_empty() {
             local name="$1"
             local value="$2"
@@ -84,7 +91,9 @@ jobs:
             validate_not_empty "routing.priority" "$PRIORITY"
             validate_not_empty "version" "$CONF_VERSION"
             
+            # ----------------------------------------------------------------------------------------
             # If this is a CREATE action, the version in the tag must match the version in config.yaml
+            # ----------------------------------------------------------------------------------------
             if [[ "${ACTION}" == "create" ]]; then
               if [[ "v${CONF_VERSION}" != "${VERSION}" ]]; then
                 echo "ERROR: Version mismatch:"
@@ -94,15 +103,17 @@ jobs:
               fi
             fi
 
+            # ---------------------------------------------------------  
             # Additional rule: s3_prefix must NOT start or end with "/"
+            # ---------------------------------------------------------
             if [[ "$S3_PREFIX" == /* || "$S3_PREFIX" == */ ]]; then
             echo "ERROR: artifacts.s3_prefix cannot start or end with '/': ${S3_PREFIX}" >&2
             exit 1
             fi
 
-            # -------------------------------------------------------------
+            # --------------------------------------
             # Output values for later workflow steps
-            # -------------------------------------------------------------
+            # --------------------------------------
             {
             echo "action=${ACTION}"
             echo "config_path=${CONFIG_PATH}"
@@ -181,9 +192,9 @@ jobs:
             "${PRIORITY}" \
             "${ECS_CLUSTER_ID}"
       
-        # ---------------------------
+        # -----------------------
         # Slack: Create succeeded
-        # ---------------------------
+        # -----------------------
         - name: Send Slack Notification (create success)
           if: ${{ success() && steps.parse.outputs.action == 'create' }}
           uses: slackapi/slack-github-action@v2.0.0
@@ -207,9 +218,9 @@ jobs:
                 ]
               }
 
-        # ---------------------------
+        # ------------------------
         # Slack: Destroy succeeded
-        # ---------------------------
+        # ------------------------
         - name: Send Slack Notification (destroy success)
           if: ${{ success() && steps.parse.outputs.action == 'destroy' }}
           uses: slackapi/slack-github-action@v2.0.0
@@ -231,9 +242,9 @@ jobs:
                 ]
               }
 
-        # ---------------------------
+        # ----------------------------------------
         # Slack: Action failed (create OR destroy)
-        # ---------------------------
+        # ----------------------------------------
         - name: Send Slack Notification (failure)
           if: ${{ failure() && (steps.parse.outputs.action == 'create' || steps.parse.outputs.action == 'destroy') }}
           uses: slackapi/slack-github-action@v2.0.0
