@@ -106,13 +106,13 @@ jobs:
             {
             echo "action=${ACTION}"
             echo "config_path=${CONFIG_PATH}"
-            echo "litserve_image=${LITSERVE_IMAGE}"
-            echo "s3_bucket=${S3_BUCKET}"
-            echo "s3_prefix=${S3_PREFIX}"
-            echo "app_port=${APP_PORT}"
-            echo "priority=${PRIORITY}"
-            echo "prefix=${MODEL_DIR}"
-            echo "fastapi_root_path=${MODEL_DIR}"
+            echo "litserve_image=${LITSERVE_IMAGE}" # Docker image for the application
+            echo "s3_bucket=${S3_BUCKET}"           # S3 bucket where artifacts for different ml models are located
+            echo "s3_prefix=${S3_PREFIX}"           # S3 prefix where a model's artifact is located 
+            echo "app_port=${APP_PORT}"             # Docker port to map on localhost
+            echo "priority=${PRIORITY}"             # Priority for the ALB listener rule
+            echo "prefix=${MODEL_DIR}"              # Resource prefix for the resources to create on AWS
+            echo "fastapi_root_path=${MODEL_DIR}"   # Same as prefix
             } >> "$GITHUB_OUTPUT"
 
             echo "INFO: Successfully parsed configuration for model '${MODEL_DIR}'"
