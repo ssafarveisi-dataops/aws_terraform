@@ -193,7 +193,7 @@ jobs:
             payload: |
               {
                 "channel": "${{ vars.SLACK_CHANNEL_ID }}",
-                "text": "✅ 🚀 Create succeeded: *${{ steps.parse.outputs.prefix }}*",
+                "text": "✅ 🚀 Resource creation succeeded: *${{ steps.parse.outputs.prefix }}*",
                 "attachments": [
                   {
                     "color": "2EB67D",
@@ -219,7 +219,7 @@ jobs:
             payload: |
               {
                 "channel": "${{ vars.SLACK_CHANNEL_ID }}",
-                "text": "✅ 🧹 Destroy succeeded: *${{ steps.parse.outputs.prefix }}*",
+                "text": "✅ 🧹 Resource destruction succeeded: *${{ steps.parse.outputs.prefix }}*",
                 "attachments": [
                   {
                     "color": "2EB67D",
@@ -243,7 +243,7 @@ jobs:
             payload: |
               {
                 "channel": "${{ vars.SLACK_CHANNEL_ID }}",
-                "text": "❌ 🔥 Action failed: *${{ steps.parse.outputs.action }}* for *${{ steps.parse.outputs.prefix }}*",
+                "text": "❌ 🔥 Action in resource management failed: *${{ steps.parse.outputs.action }}* for *${{ steps.parse.outputs.prefix }}*",
                 "attachments": [
                   {
                     "color": "E01E5A",
