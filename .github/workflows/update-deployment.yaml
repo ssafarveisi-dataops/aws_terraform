@@ -154,7 +154,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
-          IMAGE_TAG: ${{ steps.parse.outputs.model_dir }}-${{ steps.parse.outputs.pyproject_version }}
+          IMAGE_TAG: "${{ steps.parse.outputs.model_dir }}-v${{ steps.parse.outputs.pyproject_version }}"
           DOCKERFILE_PATH: ${{ steps.parse.outputs.dockerfile_path }}
           BUILD_CONTEXT: ${{ steps.parse.outputs.model_path }}
           PYTHON_VERSION: ${{ steps.parse.outputs.python_version }}
