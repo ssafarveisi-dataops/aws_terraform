@@ -160,6 +160,7 @@ jobs:
             "${LITSERVE_IMAGE}" \
             "${FASTAPI_ROOT_PATH}"
 
+            
         - name: Destroy resources
           if: steps.parse.outputs.action == 'destroy'
           shell: bash
@@ -179,3 +180,78 @@ jobs:
             "${LISTENER_ARN}" \
             "${PRIORITY}" \
             "${ECS_CLUSTER_ID}"
+      
+        # ---------------------------
+        # Slack: Create succeeded
+        # ---------------------------
+        - name: Send Slack Notification (create success)
+          if: ${{ success() && steps.parse.outputs.action == 'create' }}
+          uses: slackapi/slack-github-action@v2.0.0
+          with:
+            method: chat.postMessage
+            token: ${{ secrets.SLACK_BOT_TOKEN }}
+            payload: |
+              {
+                "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+                "text": "✅ 🚀 Create succeeded: *${{ steps.parse.outputs.prefix }}*",
+                "attachments": [
+                  {
+                    "color": "2EB67D",
+                    "fields": [
+                      { "title": "Model", "value": "${{ steps.parse.outputs.prefix }}", "short": true },
+                      { "title": "ALB prefix", "value": "${{ steps.parse.outputs.fastapi_root_path }}", "short": true },
+                      { "title": "S3", "value": "s3://${{ steps.parse.outputs.s3_bucket }}/${{ steps.parse.outputs.s3_prefix }}", "short": false },
+                      { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                    ]
+                  }
+                ]
+              }
+
+        # ---------------------------
+        # Slack: Destroy succeeded
+        # ---------------------------
+        - name: Send Slack Notification (destroy success)
+          if: ${{ success() && steps.parse.outputs.action == 'destroy' }}
+          uses: slackapi/slack-github-action@v2.0.0
+          with:
+            method: chat.postMessage
+            token: ${{ secrets.SLACK_BOT_TOKEN }}
+            payload: |
+              {
+                "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+                "text": "✅ 🧹 Destroy succeeded: *${{ steps.parse.outputs.prefix }}*",
+                "attachments": [
+                  {
+                    "color": "2EB67D",
+                    "fields": [
+                      { "title": "Model", "value": "${{ steps.parse.outputs.prefix }}", "short": true },
+                      { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                    ]
+                  }
+                ]
+              }
+
+        # ---------------------------
+        # Slack: Action failed (create OR destroy)
+        # ---------------------------
+        - name: Send Slack Notification (failure)
+          if: ${{ failure() && (steps.parse.outputs.action == 'create' || steps.parse.outputs.action == 'destroy') }}
+          uses: slackapi/slack-github-action@v2.0.0
+          with:
+            method: chat.postMessage
+            token: ${{ secrets.SLACK_BOT_TOKEN }}
+            payload: |
+              {
+                "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+                "text": "❌ 🔥 Action failed: *${{ steps.parse.outputs.action }}* for *${{ steps.parse.outputs.prefix }}*",
+                "attachments": [
+                  {
+                    "color": "E01E5A",
+                    "fields": [
+                      { "title": "Action", "value": "${{ steps.parse.outputs.action }}", "short": true },
+                      { "title": "Model", "value": "${{ steps.parse.outputs.prefix }}", "short": true },
+                      { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                    ]
+                  }
+                ]
+              }

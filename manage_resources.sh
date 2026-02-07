@@ -34,7 +34,7 @@ cleanup_temp_files() {
 
 wait_for_sg_detach() {
   local sg_id="$1"
-  local timeout_seconds="${2:-180}"   # default: 3 minutes
+  local timeout_seconds="${2:-300}"   # default: 5 minutes
   local sleep_seconds="${3:-10}"      # default: 10s
 
   log "Waiting for security group ${sg_id} to be released (timeout=${timeout_seconds}s)..."
