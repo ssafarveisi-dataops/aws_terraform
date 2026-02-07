@@ -8,4 +8,4 @@ app:
     port: 8080 # Default
 routing:
   priority: 10
-version: 0.1.0
+version: 0.1.0 # This must match with the version in the tag for CREATE release
