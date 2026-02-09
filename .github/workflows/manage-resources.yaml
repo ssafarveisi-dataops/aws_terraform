@@ -3,18 +3,18 @@ name: Create/Destroy infra for model
 on:
   push:
     tags:
-      - "create_*"
-      - "destroy_*"
+      - "create_*" # The tag must start with "create_" to trigger resource creation (e.g., create_ml-model-1_v0.1.0)
+      - "destroy_*" # The tag must start with "destroy_" to trigger resource destruction (e.g., destroy_ml-model-1_v0.1.0)
 
 env:
   AWS_REGION: "eu-central-1"
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write # for OIDC to assume AWS role
+  contents: read  # to checkout code
 
 jobs:
-  infra:
+  manage-resources:
     runs-on: ubuntu-latest
     steps:
         - uses: actions/checkout@v5
@@ -92,15 +92,13 @@ jobs:
             validate_not_empty "version" "$CONF_VERSION"
             
             # ----------------------------------------------------------------------------------------
-            # If this is a CREATE action, the version in the tag must match the version in config.yaml
+            # The version in the tag must match the version in config.yaml
             # ----------------------------------------------------------------------------------------
-            if [[ "${ACTION}" == "create" ]]; then
-              if [[ "v${CONF_VERSION}" != "${VERSION}" ]]; then
-                echo "ERROR: Version mismatch:"
-                echo "  - Tag version:     ${VERSION}"
-                echo "  - Config version:  ${CONF_VERSION}"
-                exit 1
-              fi
+            if [[ "v${CONF_VERSION}" != "${VERSION}" ]]; then
+              echo "ERROR: Version mismatch:"
+              echo "  - Tag version:     ${VERSION}"
+              echo "  - Config version:  ${CONF_VERSION}"
+              exit 1
             fi
 
             # ---------------------------------------------------------  
