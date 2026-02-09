@@ -3,16 +3,16 @@ name: Update task definition
 on:
   push:
     tags:
-      - "update_*"
-
+      - "update_*" # Trigger on tags starting with "update_". The workflow will parse the tag to determine which model to deploy and which version. Example tag: update_torch-regressor_v1.2.3
+      
 env:
   AWS_REGION: "eu-central-1"
   ECS_CLUSTER: "poc-deployment-cluster"
   ECR_REPOSITORY: dataops-poc-deployment
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write # Required for OIDC authentication to assume AWS role
+  contents: read  # Required to read repository contents (e.g., Dockerfile, config) during workflow 
 
 jobs:
   deploy-task:
