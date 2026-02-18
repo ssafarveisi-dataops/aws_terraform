@@ -15,7 +15,12 @@ ENV BUILD_ENV=$BUILD_ENV
 
 COPY certificates/ /usr/local/share/ca-certificates/
 
-RUN if [ "$BUILD_ENV" = "git-actions" ] ; then echo "non-local env"; else echo "local env: BUILD_ENV"; update-ca-certificates ; fi
+RUN if [ "$BUILD_ENV" = "git-actions" ]; then \
+        echo "non-local env"; \
+    else \
+        echo "local env: $BUILD_ENV"; \
+        update-ca-certificates; \
+    fi
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
@@ -43,9 +48,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # The Python slim image does not come with curl (necessary for ECS container health check)
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-    
-RUN groupadd --system --gid 999 nonroot \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 999 nonroot \
     && useradd --system --gid 999 --uid 999 --create-home nonroot
 
 COPY --from=builder --chown=nonroot:nonroot /app /app
