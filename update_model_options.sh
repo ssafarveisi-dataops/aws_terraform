@@ -48,5 +48,4 @@ update_workflow_file() {
 
 for wf in "${WORKFLOW_FILES[@]}"; do
   update_workflow_file "$wf"
-  updated_any=1
 done
