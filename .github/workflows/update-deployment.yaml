@@ -1,14 +1,20 @@
-name: Update task definition
+name: Deploy task definition
 
 on:
-  push:
-    tags:
-      - "update_*" # Trigger on tags starting with "update_". The workflow will parse the tag to determine which model to deploy and which version. Example tag: update_torch-regressor_v1.2.3
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model directory"
+        required: true
+        type: choice
+        options: # This list will be extended with PRs
+          - ml-model-1
+          - ml-model-2
       
 env:
   AWS_REGION: "eu-central-1"
   ECS_CLUSTER: "poc-deployment-cluster"
-  ECR_REPOSITORY: dataops-poc-deployment
+  ECR_REPOSITORY: "dataops-poc-deployment"
 
 permissions:
   id-token: write # Required for OIDC authentication to assume AWS role
@@ -25,36 +31,13 @@ jobs:
         with:
           ref: main
 
-      # ----------------------------------------
-      # Parse tag -> model directory + version
-      # Tag format: update_<model_dir>_<version>
-      # Example: update_torch-regressor_v1.2.3
-      # ----------------------------------------
-      - name: Parse tag and load model config
+      - name: Extract configurations for other steps
         id: parse
         shell: bash
         run: |
           set -euo pipefail
 
-          TAG="${GITHUB_REF_NAME}"
-          echo "INFO: Tag: ${TAG}"
-
-          ACTION="${TAG%%_*}"          # update
-          REST="${TAG#*_}"             # <model_dir>_<version> (e.g., torch-regressor_v1.2.3)
-          TAG_VERSION="${REST##*_}"    # last token (e.g., v1.2.3)
-          MODEL_DIR="${REST%_*}"       # everything between (e.g., torch-regressor)
-
-          if [[ "${ACTION}" != "update" ]]; then
-            echo "ERROR: This workflow only supports update_ tags. Got: ${ACTION}" >&2
-            exit 1
-          fi
-
-          # Check the directory is parsable
-          if [[ -z "${MODEL_DIR}" || "${MODEL_DIR}" == "${REST}" ]]; then
-            echo "ERROR: Could not parse model directory from tag: ${TAG}" >&2
-            echo "Expected: update_<model_dir>_<version>" >&2
-            exit 1
-          fi
+          MODEL_DIR="{{ inputs.model }}"       
 
           # ------------------------------------------
           # Check required files and directories exist
@@ -80,9 +63,7 @@ jobs:
           S3_BUCKET="$(yq -r '.artifacts.s3_bucket' "${CONFIG_PATH}")"
           S3_PREFIX="$(yq -r '.artifacts.s3_prefix' "${CONFIG_PATH}")"
         
-          # Extract version from pyproject.toml (Poetry-style)
-          PYPROJECT_VERSION="$(grep -E '^[[:space:]]*version[[:space:]]*=' "$PYPROJECT" | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')"
-
+        
           # Read python version
           PYTHON_VERSION="$(head -n 1 "$PYTHON_VERSION_FILE" | tr -d '[:space:]')"
 
@@ -98,17 +79,7 @@ jobs:
           validate_not_empty ".artifacts.s3_bucket" "$S3_BUCKET"
           validate_not_empty ".artifacts.s3_prefix" "$S3_PREFIX"
           validate_not_empty ".python-version" "$PYTHON_VERSION"
-          validate_not_empty "pyproject-version" "$PYPROJECT_VERSION"
           
-          # ---------------------------------------------------------------
-          # The version in the tag must match the version in pyproject.toml
-          # ---------------------------------------------------------------
-          if [[ "v${PYPROJECT_VERSION}" != "${TAG_VERSION}" ]]; then
-            echo "ERROR: Version mismatch:"
-            echo "  - Tag version:      ${TAG_VERSION}"
-            echo "  - Pyproject version:  ${PYPROJECT_VERSION}"
-            exit 1
-          fi
           
           # -------------------------------------------------------------
           # Additional rule: s3_prefix must not have leading/trailing "/"
@@ -129,10 +100,7 @@ jobs:
             echo "s3_bucket=${S3_BUCKET}"
             echo "s3_prefix=${S3_PREFIX}"
             echo "root_path=${MODEL_DIR}"
-            echo "pyproject_version=${PYPROJECT_VERSION}"
           } >> "$GITHUB_OUTPUT"
-
-          echo "INFO: Parsed model=${MODEL_DIR}, tag version=${TAG_VERSION}"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -165,7 +133,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
-          IMAGE_TAG: "${{ steps.parse.outputs.model_dir }}-v${{ steps.parse.outputs.pyproject_version }}"
+          IMAGE_TAG: "${{ steps.parse.outputs.model_dir }}-latest"
           DOCKERFILE_PATH: ${{ steps.parse.outputs.dockerfile_path }}
           BUILD_CONTEXT: ${{ steps.parse.outputs.model_path }}
           PYTHON_VERSION: ${{ steps.parse.outputs.python_version }}

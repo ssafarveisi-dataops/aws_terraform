@@ -1,10 +1,22 @@
-name: Create/Destroy infra for model
+name: Apply/Destroy infra for model
 
 on:
-  push:
-    tags:
-      - "create_*" # The tag must start with "create_" to trigger resource creation (e.g., create_ml-model-1_v0.1.0)
-      - "destroy_*" # The tag must start with "destroy_" to trigger resource destruction (e.g., destroy_ml-model-1_v0.1.0)
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        type: choice
+        options: # Static list
+          - apply
+          - destroy
+      model:
+        description: "Model directory"
+        required: true
+        type: choice
+        options: # This list will be extended with PRs
+          - ml-model-1
+          - ml-model-2
 
 env:
   AWS_REGION: "eu-central-1"
@@ -25,33 +37,8 @@ jobs:
           run: |
             set -euo pipefail
 
-            TAG="${GITHUB_REF_NAME}"
-            echo "INFO: Tag: ${TAG}"
-
-            # ------------------------------------------------
-            # Parse tag of form: create_<model_dir>_<version>
-            #                    destroy_<model_dir>_<version>
-            # ------------------------------------------------
-            ACTION="${TAG%%_*}"    # first token before first "_" (e.g., create)
-            REST="${TAG#*_}"       # everything after first "_" (e.g., ml-model-1_v0.1.0)
-            VERSION="${REST##*_}"  # last token after last "_" (e.g., v0.1.0)
-            MODEL_DIR="${REST%_*}" # everything between action and version (e.g., ml-model-1)
-            
-            # ---------------
-            # Validate action
-            # ---------------
-            if [[ "${ACTION}" != "create" && "${ACTION}" != "destroy" ]]; then
-            echo "ERROR: Action must be create or destroy. Got: ${ACTION}" >&2
-            exit 1
-            fi
-
-            # ------------------------  
-            # Validate model directory
-            # ------------------------
-            if [[ -z "${MODEL_DIR}" || "${MODEL_DIR}" == "${REST}" ]]; then
-            echo "ERROR: Could not parse model directory from tag: ${TAG}" >&2
-            exit 1
-            fi
+            ACTION="{{ inputs.action }}" # Action input parameter
+            MODEL_DIR="{{ inputs.model }}" # Model input parameter            
             
             # ---------------------------------------------------------------
             # Check the presence of the config file for the model's resources
@@ -70,7 +57,6 @@ jobs:
             S3_PREFIX="$(yq -r '.artifacts.s3_prefix' "${CONFIG_PATH}")"
             APP_PORT="$(yq -r '.app.port_mapping.port' "${CONFIG_PATH}")"
             PRIORITY="$(yq -r '.routing.priority' "${CONFIG_PATH}")"
-            CONF_VERSION="$(yq -r '.version' "${CONFIG_PATH}")"
 
             # ------------------------------------------
             # Validate extracted values (not null/empty)
@@ -89,17 +75,6 @@ jobs:
             validate_not_empty "artifacts.s3_prefix" "$S3_PREFIX"
             validate_not_empty "app.port_mapping.port" "$APP_PORT"
             validate_not_empty "routing.priority" "$PRIORITY"
-            validate_not_empty "version" "$CONF_VERSION"
-            
-            # ----------------------------------------------------------------------------------------
-            # The version in the tag must match the version in config.yaml
-            # ----------------------------------------------------------------------------------------
-            if [[ "v${CONF_VERSION}" != "${VERSION}" ]]; then
-              echo "ERROR: Version mismatch:"
-              echo "  - Tag version:     ${VERSION}"
-              echo "  - Config version:  ${CONF_VERSION}"
-              exit 1
-            fi
 
             # ---------------------------------------------------------  
             # Additional rule: s3_prefix must NOT start or end with "/"
@@ -134,7 +109,7 @@ jobs:
             aws-region: ${{ env.AWS_REGION }}
 
         - name: Create resources
-          if: steps.parse.outputs.action == 'create'
+          if: steps.parse.outputs.action == 'apply'
           shell: bash
           env:
             VPC_ID: ${{ vars.VPC_ID }}
@@ -194,7 +169,7 @@ jobs:
         # Slack: Create succeeded
         # -----------------------
         - name: Send Slack Notification (create success)
-          if: ${{ success() && steps.parse.outputs.action == 'create' }}
+          if: ${{ success() && steps.parse.outputs.action == 'apply' }}
           uses: slackapi/slack-github-action@v2.0.0
           with:
             method: chat.postMessage
@@ -244,7 +219,7 @@ jobs:
         # Slack: Action failed (create OR destroy)
         # ----------------------------------------
         - name: Send Slack Notification (failure)
-          if: ${{ failure() && (steps.parse.outputs.action == 'create' || steps.parse.outputs.action == 'destroy') }}
+          if: ${{ failure() && (steps.parse.outputs.action == 'apply' || steps.parse.outputs.action == 'destroy') }}
           uses: slackapi/slack-github-action@v2.0.0
           with:
             method: chat.postMessage
