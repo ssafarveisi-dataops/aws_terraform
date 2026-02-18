@@ -3,7 +3,7 @@ set -euo pipefail
 
 MODELS_DIR="models"
 WORKFLOW_FILES=(
-  ".github/workflows/deploy-model.yaml"
+  ".github/workflows/deploy-task-definition.yaml"
   ".github/workflows/manage-resources.yaml"
 )
 

@@ -31,6 +31,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
-          git add .github/workflows/deploy-model.yaml
+          git add .github/workflows/manage-resources.yaml
+          git add .github/workflows/deploy-task-definition.yaml
           git commit -m "chore: sync model options from models directory"
           git push
