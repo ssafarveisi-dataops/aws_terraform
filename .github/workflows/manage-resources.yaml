@@ -17,6 +17,9 @@ on:
         options: # This list will be extended with PRs
           - ml-model-1
           - ml-model-2
+          - ml-model-3
+          - ml-model-4
+          - ml-model-5
 
 env:
   AWS_REGION: "eu-central-1"
