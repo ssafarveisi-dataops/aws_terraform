@@ -1,0 +1,29 @@
+name: Deploy Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        type: choice
+        options:
+          - apply
+          - destroy
+
+      model:
+        description: "Model directory"
+        required: true
+        type: choice
+        options:
+          - placeholder
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+            echo "Action: ${{ inputs.action }}"
+      
+      - run: |
+            echo "Model: ${{ inputs.model }}"

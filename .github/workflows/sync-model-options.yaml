@@ -1,0 +1,36 @@
+name: Sync model options
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "models/**"
+
+jobs:
+  update-workflow:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GH_FG_TOKEN }}
+          ref: ${{ github.head_ref }}
+
+      - name: Update workflow options
+        run: |
+          bash ./update_model_options.sh
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet; then
+            echo "No changes detected."
+            exit 0
+          fi
+
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          git add .github/workflows/deploy-model.yaml
+          git commit -m "chore: sync model options from models directory"
+          git push
