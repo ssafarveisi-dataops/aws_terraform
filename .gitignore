@@ -11,7 +11,3 @@ wheels/
 .terraform
 *.ipynb
 *.log
-models.yaml
-ecs-container-definitions.json
-ecs-task-s3-policy.json
-ecs-task-trust.json
