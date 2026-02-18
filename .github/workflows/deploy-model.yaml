@@ -16,7 +16,8 @@ on:
         required: true
         type: choice
         options:
-          - placeholder
+          - ml-model-1
+          - ml-model-2
 
 jobs:
   deploy:
