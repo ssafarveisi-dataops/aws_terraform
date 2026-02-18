@@ -1,0 +1,50 @@
+name: Enforce model directory limit
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-model-dir-count:
+    runs-on: ubuntu-latest
+
+    env:
+      MODELS_DIR: models
+      MAX_MODEL_DIRS: "20"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Count first-level model directories
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! -d "${MODELS_DIR}" ]]; then
+            echo "::notice::Directory '${MODELS_DIR}/' not found. Skipping check."
+            exit 0
+          fi
+
+          # Count only first-level subdirectories in models/
+          count="$(find "${MODELS_DIR}" -mindepth 1 -maxdepth 1 -type d -print | wc -l | tr -d ' ')"
+
+          echo "Found ${count} first-level model subdirectories in '${MODELS_DIR}/'."
+          echo "Configured max allowed is ${MAX_MODEL_DIRS}."
+
+          # Ensure MAX_MODEL_DIRS is an integer
+          if ! [[ "${MAX_MODEL_DIRS}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid MAX_MODEL_DIRS='${MAX_MODEL_DIRS}'. It must be an integer."
+            exit 2
+          fi
+
+          if (( count > MAX_MODEL_DIRS )); then
+            echo "::error::Too many model subdirectories in '${MODELS_DIR}/': ${count} exceeds limit ${MAX_MODEL_DIRS}."
+            echo "Please remove unused models, consolidate directories, or increase MAX_MODEL_DIRS (repo variable)."
+            echo ""
+            echo "Current first-level directories:"
+            find "${MODELS_DIR}" -mindepth 1 -maxdepth 1 -type d -printf " - %f\n" | sort
+            exit 1
+          fi
+
+          echo "OK: ${count} <= ${MAX_MODEL_DIRS}"
