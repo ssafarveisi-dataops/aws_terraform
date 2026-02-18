@@ -46,7 +46,6 @@ FROM python:${PYTHON_VERSION}-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The Python slim image does not come with curl (necessary for ECS container health check)
-# The Python slim image does not come with curl (necessary for ECS container health check)
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 999 nonroot \
