@@ -30,7 +30,7 @@ jobs:
     steps:
         - uses: actions/checkout@v5
 
-        - name: Parse tag and load config
+        - name: Extract configurations for other steps
           id: parse
           shell: bash
           run: |
