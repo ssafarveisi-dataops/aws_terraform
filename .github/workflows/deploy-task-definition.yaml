@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          MODEL_DIR="{{ inputs.model }}"       
+          MODEL_DIR="${{ inputs.model }}"       
 
           # ------------------------------------------
           # Check required files and directories exist

@@ -36,8 +36,8 @@ jobs:
           run: |
             set -euo pipefail
 
-            ACTION="{{ inputs.action }}" # Action input parameter
-            MODEL_DIR="{{ inputs.model }}" # Model input parameter            
+            ACTION="${{ inputs.action }}" # Action input parameter
+            MODEL_DIR="${{ inputs.model }}" # Model input parameter            
             
             # ---------------------------------------------------------------
             # Check the presence of the config file for the model's resources
