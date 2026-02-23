@@ -18,4 +18,4 @@ run_time:
       value: ml-model-1 # Should be the same as above
   secrets:
     - name: OPENAPI_KEY
-      valueFrom: "arn:aws:ssm:eu-central-1:598520881431:parameter/science-dev/poc-deployment/run-rime/openapi_key" # Assuming this parameter already exists
+      value: "arn:aws:ssm:eu-central-1:598520881431:parameter/science-dev/poc-deployment/run-rime/openapi_key" # Assuming this parameter already exists
