@@ -117,3 +117,11 @@ resource "aws_ecs_cluster_capacity_providers" "ecs_providers" {
     weight            = 100
   }
 }
+
+resource "aws_ssm_parameter" "openai_key" {
+  name        = "/science-dev/poc-deployment/run-rime/openapi_key"
+  type        = "SecureString"
+  description = "Dummy key for OpenAI"
+  value       = var.openapi_key
+  tier        = "Standard"
+}

@@ -53,12 +53,6 @@ jobs:
           [[ -f "${PYPROJECT}" ]] || { echo "ERROR: Missing pyproject.toml at ${PYPROJECT}" >&2; exit 1; }
           [[ -f "${UV_LOCK_FILE}" ]] || { echo "ERROR: Missing uv lock file at ${UV_LOCK_FILE}" >&2; exit 1; }
           [[ -d "${SRC_FOLDER}" ]] || { echo "ERROR: Missing src folder at ${SRC_FOLDER}" >&2; exit 1; }
-          
-          # ----------------------------
-          # Extract config values via yq
-          # ----------------------------
-          S3_BUCKET="$(yq -r '.artifacts.s3_bucket' "${CONFIG_PATH}")"
-          S3_PREFIX="$(yq -r '.artifacts.s3_prefix' "${CONFIG_PATH}")"
         
         
           # Read python version
@@ -73,18 +67,8 @@ jobs:
             fi
           }
 
-          validate_not_empty ".artifacts.s3_bucket" "$S3_BUCKET"
-          validate_not_empty ".artifacts.s3_prefix" "$S3_PREFIX"
           validate_not_empty ".python-version" "$PYTHON_VERSION"
           
-          
-          # -------------------------------------------------------------
-          # Additional rule: s3_prefix must not have leading/trailing "/"
-          # -------------------------------------------------------------
-          if [[ "$S3_PREFIX" == /* || "$S3_PREFIX" == */ ]]; then
-            echo "ERROR: artifacts.s3_prefix must not have leading/trailing '/': $S3_PREFIX" >&2
-            exit 1
-          fi
           
           # --------------------------------------
           # Output values for later workflow steps
@@ -94,9 +78,7 @@ jobs:
             echo "model_path=${MODEL_PATH}"
             echo "dockerfile_path=${DOCKERFILE_PATH}"
             echo "python_version=${PYTHON_VERSION}"
-            echo "s3_bucket=${S3_BUCKET}"
-            echo "s3_prefix=${S3_PREFIX}"
-            echo "root_path=${MODEL_DIR}"
+            echo "config_path=${CONFIG_PATH}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS Credentials
@@ -105,14 +87,6 @@ jobs:
           role-to-assume: ${{ secrets.ROLE_ARN }}
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Get AWS Account ID
-        id: get-account
-        shell: bash
-        run: |
-          set -euo pipefail
-          ACCOUNT_ID="$(aws sts get-caller-identity --query "Account" --output text)"
-          echo "account=$ACCOUNT_ID" >> "$GITHUB_OUTPUT"
 
       - name: Login to AWS ECR
         id: login-ecr
@@ -157,60 +131,18 @@ jobs:
         shell: bash
         env:
           FAMILY: ${{ steps.parse.outputs.model_dir }}-poc-deployment-task
-          TASK_ROLE_ARN: arn:aws:iam::${{ steps.get-account.outputs.account }}:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-role
-          EXEC_ROLE_ARN: arn:aws:iam::${{ steps.get-account.outputs.account }}:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-execution-role
+          TASK_ROLE_ARN: arn:aws:iam::598520881431:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-role
+          EXEC_ROLE_ARN: arn:aws:iam::598520881431:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-execution-role
           IMAGE: ${{ steps.build-push-image.outputs.image }}
-          S3_BUCKET: ${{ steps.parse.outputs.s3_bucket }}
-          S3_PREFIX: ${{ steps.parse.outputs.s3_prefix }}
-          ROOT_PATH: ${{ steps.parse.outputs.root_path }}
           LOG_GROUP: ${{ steps.parse.outputs.model_dir }}-litserve-logs
-          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
-          set -euo pipefail
-
-          TEMPLATE="task-definition.template.json"
-          OUT="task-definition.json"
-
-          [[ -f "$TEMPLATE" ]] || { echo "ERROR: Missing template: $TEMPLATE" >&2; exit 1; }
-
-          # (infra pipeline handles PLACEHOLDER separately; update pipeline deploys real image.)
-          jq \
-            --arg family "$FAMILY" \
-            --arg taskRoleArn "$TASK_ROLE_ARN" \
-            --arg executionRoleArn "$EXEC_ROLE_ARN" \
-            --arg image "$IMAGE" \
-            --arg s3_bucket "$S3_BUCKET" \
-            --arg s3_prefix "$S3_PREFIX" \
-            --arg root_path "$ROOT_PATH" \
-            --arg log_group "$LOG_GROUP" \
-            --arg region "$AWS_REGION" \
-            '
-            .family = $family
-            | .taskRoleArn = $taskRoleArn
-            | .executionRoleArn = $executionRoleArn
-            | .containerDefinitions[0].image = $image
-            | (.containerDefinitions[0].environment |=
-                map(
-                  if .name == "S3_BUCKET" then .value = $s3_bucket
-                  elif .name == "S3_PREFIX" then .value = $s3_prefix
-                  elif .name == "ROOT_PATH" then .value = $root_path
-                  else .
-                  end
-                )
-              )
-            | .containerDefinitions[0].logConfiguration.options["awslogs-group"] = $log_group
-            | .containerDefinitions[0].logConfiguration.options["awslogs-region"] = $region
-            ' "$TEMPLATE" > "$OUT"
-
-          echo "taskdef=$OUT" >> "$GITHUB_OUTPUT"
-          echo "INFO: Rendered $OUT"
-          cat "$OUT"
+          ./render-task-def.sh ${{ steps.parse.outputs.config_path }} taskdef.template.json taskdef.rendered.json
 
       - name: Deploy Amazon ECS Task Definition
         id: deploy-ecs-task
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.render-taskdef.outputs.taskdef }}
+          task-definition: taskdef.rendered.json
           service: ${{ steps.parse.outputs.model_dir }}-poc-deployment-service
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true

@@ -21,3 +21,9 @@ variable "azs" {
   type        = list(string)
   default     = ["eu-central-1a", "eu-central-1b"]
 }
+
+variable "openapi_key" {
+  sensitive   = true
+  type        = string
+  description = "Dummy OpenAPI key used by the container at runtime"
+}

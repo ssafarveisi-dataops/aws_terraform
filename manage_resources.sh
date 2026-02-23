@@ -27,7 +27,8 @@ aws_capture() {
 cleanup_temp_files() {
   rm -f ecs-container-definitions.json \
         ecs-task-s3-policy.json \
-        ecs-task-trust.json
+        ecs-task-trust.json \
+        ecs-task-execution-ssm-policy.json
 
   log "Cleaned up temporary ECS JSON files"
 }
@@ -160,6 +161,32 @@ create_ecs_task_execution_role() {
   fi
 
   aws iam get-role --role-name "${role_name}" --query "Role.Arn" --output text
+}
+
+attach_ecs_task_execution_ssm_policy() {
+  local prefix="$1"
+
+  local role_name="${prefix}-poc-deployment-task-execution-role"
+  local policy_name="${prefix}-poc-deployment-task-execution-ssm"
+
+  cat <<EOF > ecs-task-execution-ssm-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SSMAccess",
+      "Effect": "Allow",
+      "Action": "ssm:GetParameters",
+      "Resource": "arn:aws:ssm:eu-central-1:598520881431:parameter/science-dev/poc-deployment/run-rime/*"
+    },
+  ]
+}
+EOF
+
+  aws iam put-role-policy --role-name "${role_name}" --policy-name "${policy_name}" \
+    --policy-document file://ecs-task-execution-ssm-policy.json >/dev/null
+
+  log "Inline SSM policy attached/updated: ${policy_name} -> ${role_name}"
 }
 
 create_ecs_task_role() {
@@ -394,11 +421,8 @@ create_ecs_task_definition() {
   local execution_role_arn="$3"
   local app_port="$4"
   local litserve_image="$5"     # or "PLACEHOLDER"
-  local s3_bucket="$6"
-  local s3_prefix="$7"
-  local fastapi_root_path="$8"
-  local log_group_name="$9"
-  local aws_region="${10}"
+  local log_group_name="$6"
+  local aws_region="$7"
 
   local family="${prefix}-poc-deployment-task"
   local container_name="litserve-container"
@@ -415,11 +439,6 @@ create_ecs_task_definition() {
       { "containerPort": ${app_port}, "protocol": "tcp", "appProtocol": "http" }
     ],
     "command": ["-listen=:${app_port}"],
-    "environment": [
-      { "name": "S3_BUCKET", "value": "${s3_bucket}" },
-      { "name": "S3_PREFIX", "value": "${s3_prefix}" },
-      { "name": "ROOT_PATH", "value": "${fastapi_root_path}" }
-    ],
     "logConfiguration": {
       "logDriver": "awslogs",
       "options": {
@@ -451,11 +470,6 @@ EOF
       "retries": 3,
       "startPeriod": 60
     },
-    "environment": [
-      { "name": "S3_BUCKET", "value": "${s3_bucket}" },
-      { "name": "S3_PREFIX", "value": "${s3_prefix}" },
-      { "name": "ROOT_PATH", "value": "${fastapi_root_path}" }
-    ],
     "logConfiguration": {
       "logDriver": "awslogs",
       "options": {
@@ -648,6 +662,8 @@ create_all_resources() {
   task_role_arn="$(create_ecs_task_role "$prefix")"
   # Attach a S3 policy to the ECS task role
   attach_ecs_task_s3_policy "$prefix" "$s3_bucket" "$s3_prefix"
+  # Attach an SSM policy to the ECS task execution role
+  attach_ecs_task_execution_ssm_policy "$prefix"
 
   ecs_sg_id="$(create_ecs_security_group "$prefix" "$vpc_id" "$app_port" "$alb_sg_id")"
   tg_arn="$(create_alb_target_group "$prefix" "$vpc_id" "$app_port")"
@@ -660,9 +676,6 @@ create_all_resources() {
     "$execution_role_arn" \
     "$app_port" \
     "$litserve_image" \
-    "$s3_bucket" \
-    "$s3_prefix" \
-    "$fastapi_root_path" \
     "$log_group_name" \
     "$aws_region")"
   
@@ -709,6 +722,10 @@ destroy_all_resources() {
   aws iam detach-role-policy \
     --role-name "${prefix}-poc-deployment-task-execution-role" \
     --policy-arn "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy" >/dev/null
+  
+  aws iam delete-role-policy \
+    --role-name "${prefix}-poc-deployment-task-execution-role" \
+    --policy-name "${prefix}-poc-deployment-task-execution-ssm" >/dev/null
 
   aws iam delete-role --role-name "${prefix}-poc-deployment-task-role" >/dev/null
   aws iam delete-role --role-name "${prefix}-poc-deployment-task-execution-role" >/dev/null

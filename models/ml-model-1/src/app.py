@@ -52,6 +52,8 @@ class PredictResponse(BaseModel):
 async def lifespan(app: FastAPI):
     bucket = os.environ.get("S3_BUCKET")
     prefix = os.environ.get("S3_PREFIX")
+    openapi_key = os.environ.get("OPENAPI_KEY")
+    print(f"The OpenAPI key is: {openapi_key}")
 
     if not bucket or not prefix:
         raise RuntimeError("Missing required env vars: S3_BUCKET and/or S3_PREFIX")
