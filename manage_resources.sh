@@ -751,9 +751,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
   case "$1" in
     create)
-      if [[ $# -ne 14 ]]; then usage; fi
+      if [[ $# -ne 13 ]]; then usage; fi
       create_all_resources \
-        "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" "${10}" "${11}" "${12}" "${13}" "${14}"
+        "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" "${10}" "${11}" "${12}" "${13}"
       ;;
     destroy)
       if [[ $# -ne 6 ]]; then usage; fi
