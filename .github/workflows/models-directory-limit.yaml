@@ -10,7 +10,7 @@ jobs:
 
     env:
       MODELS_DIR: models
-      MAX_MODEL_DIRS: "20"
+      MAX_MODEL_DIRS: "20" # Maximum number of POC models
 
     steps:
       - name: Checkout
