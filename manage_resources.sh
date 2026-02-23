@@ -636,7 +636,6 @@ create_all_resources() {
   local subnets_csv="${10}"
   local aws_region="${11}"
   local litserve_image="${12}"
-  local fastapi_root_path="${13}"
 
   require_nonempty "prefix" "${prefix}"
   require_nonempty "s3_bucket" "${s3_bucket}"
@@ -650,7 +649,6 @@ create_all_resources() {
   require_nonempty "subnets_csv" "${subnets_csv}"
   require_nonempty "aws_region" "${aws_region}"
   require_nonempty "litserve_image" "${litserve_image}"
-  require_nonempty "fastapi_root_path" "${fastapi_root_path}"
 
   # Base resources
   local log_group_name execution_role_arn task_role_arn
@@ -740,7 +738,7 @@ usage() {
   echo "" >&2
   echo "Usage:" >&2
   echo "  Create:" >&2
-  echo "    ./create_resources.sh create <prefix> <s3_bucket> <s3_prefix> <vpc_id> <app_port> <alb_sg_id> <listener_arn> <priority> <ecs_cluster_id> <subnets_csv> <aws_region> <litserve_image|PLACEHOLDER> <fastapi_root_path>" >&2
+  echo "    ./create_resources.sh create <prefix> <s3_bucket> <s3_prefix> <vpc_id> <app_port> <alb_sg_id> <listener_arn> <priority> <ecs_cluster_id> <subnets_csv> <aws_region> <litserve_image|PLACEHOLDER>" >&2
   echo "" >&2
   echo "  Destroy:" >&2
   echo "    ./create_resources.sh destroy <prefix> <vpc_id> <listener_arn> <priority> <ecs_cluster_id>" >&2
