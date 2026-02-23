@@ -178,7 +178,7 @@ attach_ecs_task_execution_ssm_policy() {
       "Effect": "Allow",
       "Action": "ssm:GetParameters",
       "Resource": "arn:aws:ssm:eu-central-1:598520881431:parameter/science-dev/poc-deployment/run-rime/*"
-    },
+    }
   ]
 }
 EOF
