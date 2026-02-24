@@ -1,6 +1,6 @@
 import os
 from contextlib import asynccontextmanager
-from typing import List, Union, Optional
+from typing import List, Union
 
 import boto3
 import torch
@@ -53,6 +53,7 @@ async def lifespan(app: FastAPI):
     bucket = os.environ.get("S3_BUCKET")
     prefix = os.environ.get("S3_PREFIX")
     openapi_key = os.environ.get("OPENAPI_KEY")
+    
     print(f"The OpenAPI key is: {openapi_key}")
 
     if not bucket or not prefix:
@@ -127,8 +128,8 @@ def health():
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    model: Optional[nn.Module] = getattr(app.state, "model", None)
-    in_features: Optional[int] = getattr(app.state, "in_features", None)
+    model: nn.Module | None = getattr(app.state, "model", None)
+    in_features: int | None = getattr(app.state, "in_features", None)
 
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
