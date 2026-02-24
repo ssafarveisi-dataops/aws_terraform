@@ -1,21 +1,25 @@
-container:
-  litserve_image: PLACEHOLDER # When the first time an ECS service and task is created
-artifacts:
-  s3_bucket: dataops-poc-deployment
-  s3_prefix: ml-model-1 # Or a/b/c (no leading or trailing / and a, b and c are folders)
+########## GUIDE ##########
+# (1-1) and (1-2) should have the same entry
+# (2-1), (2-2), and (2-3) should have the same entry
+########## GUIDE ##########
 app:
+  container:
+    image: PLACEHOLDER
+    run_time:
+      env:
+        - name: S3_BUCKET
+          value: dataops-poc-deployment # (1-1)
+        - name: S3_PREFIX
+          value: ml-model-1 # (2-1)
+        - name: ROOT_PATH
+          value: ml-model-1 # (2-2)
+      secrets:
+        - name: OPENAPI_KEY
+          value: "arn:aws:ssm:eu-central-1:598520881431:parameter/science-dev/poc-deployment/run-rime/openapi_key"
+  artifacts:
+    s3_bucket: dataops-poc-deployment # (1-2)
+    s3_prefix: ml-model-1 # (2-3)
   port_mapping: 
-    port: 8080 # Default
-routing:
+    port: 8080
+routing: 
   priority: 10
-run_time:
-  env:
-    - name: S3_BUCKET
-      value: dataops-poc-deployment # You should not change this (shared among poc deployments)
-    - name: S3_PREFIX
-      value: ml-model-1
-    - name: ROOT_PATH
-      value: ml-model-1 # Should be the same as above
-  secrets:
-    - name: OPENAPI_KEY
-      value: "arn:aws:ssm:eu-central-1:598520881431:parameter/science-dev/poc-deployment/run-rime/openapi_key" # Assuming this parameter already exists

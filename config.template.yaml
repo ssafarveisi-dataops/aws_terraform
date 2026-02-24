@@ -1,0 +1,25 @@
+########## GUIDE ##########
+# (1-1) and (1-2) should have the same entry
+# (2-1), (2-2), and (2-3) should have the same entry
+########## GUIDE ##########
+app:
+  container:
+    image: PLACEHOLDER # Please do not change (used when we initially provision the infrastructure)
+    run_time:
+      env:
+        - name: S3_BUCKET # Required
+          value: <string> # (1-1)
+        - name: S3_PREFIX # Required
+          value: <string> # (2-1) # It should be the name of the subdirectory under `models`
+        - name: ROOT_PATH # Required
+          value: <string> # (2-2)
+        # Add more env variables
+      secrets: [] # Add if the container needs it at runtime. Otherwise, set `secrets: []`
+        # Add more secrets
+  artifacts:
+    s3_bucket: <string> # (1-2)
+    s3_prefix: <string> # (2-3) Or a/b/c (no leading or trailing / and a, b and c are folders)
+  port_mapping: 
+    port: 8080 # Please do not change (shared among poc deployments)
+routing: # ALB listener rule
+  priority: <integer> # This should be unique for each poc deployment

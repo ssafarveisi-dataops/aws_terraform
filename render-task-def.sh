@@ -26,10 +26,10 @@ echo "LOG_GROUP:        ${LOG_GROUP}"
 # --- Extract runtime env + secrets from config.yaml ---
 
 # If run_time.env does not exist, default to []
-RUNTIME_ENV_JSON=$(yq -o=json '.run_time.env // []' "${CONFIG_PATH}")
+RUNTIME_ENV_JSON=$(yq -o=json '.app.container.run_time.env // []' "${CONFIG_PATH}")
 
 # If run_time.secrets does not exist, default to []
-RUNTIME_SECRETS_JSON=$(yq -o=json '.run_time.secrets // []' "${CONFIG_PATH}")
+RUNTIME_SECRETS_JSON=$(yq -o=json '.app.container.run_time.secrets // []' "${CONFIG_PATH}")
 
 # --- Render task definition with jq ---
 

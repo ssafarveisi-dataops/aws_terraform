@@ -123,9 +123,9 @@ jobs:
           echo "INFO: Image pushed successfully."
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
-      # -------------------------------------------------
-      # Render ECS task definition from template using jq
-      # -------------------------------------------------
+      # ----------------------------------------
+      # Render ECS task definition from template
+      # ----------------------------------------
       - name: Render ECS task definition
         id: render-taskdef
         shell: bash
