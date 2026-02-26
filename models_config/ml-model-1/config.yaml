@@ -8,16 +8,16 @@ app:
     run_time:
       env:
         - name: S3_BUCKET
-          value: dataops-poc-deployment # (1-1)
+          value: science-poc-deployment # (1-1)
         - name: S3_PREFIX
           value: ml-model-1 # (2-1)
         - name: ROOT_PATH
-          value: ml-model-1 # (2-2)
+          value: poc-deployment/ml-model-1 # (2-2) # Keep the `poc-deployment` prefix as is
       secrets:
         - name: OPENAPI_KEY
-          value: "arn:aws:ssm:eu-central-1:598520881431:parameter/science-dev/poc-deployment/run-rime/openapi_key"
+          value: "arn:aws:ssm:eu-west-1:463470983643:parameter/science-dev/poc-deployment/run-rime/openapi_key"
   artifacts:
-    s3_bucket: dataops-poc-deployment # (1-2)
+    s3_bucket: science-poc-deployment # (1-2)
     s3_prefix: ml-model-1 # (2-3)
   port_mapping: 
     port: 8080

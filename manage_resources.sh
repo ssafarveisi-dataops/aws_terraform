@@ -99,7 +99,7 @@ require_nonempty() {
 
 create_log_group() {
   local prefix="$1"
-  local lg_name="${prefix}-litserve-logs"
+  local lg_name="poc-deployment-${prefix}-logs"
 
   local existing
   existing="$(aws logs describe-log-groups \
@@ -177,7 +177,7 @@ attach_ecs_task_execution_ssm_policy() {
       "Sid": "SSMAccess",
       "Effect": "Allow",
       "Action": "ssm:GetParameters",
-      "Resource": "arn:aws:ssm:eu-central-1:598520881431:parameter/science-dev/poc-deployment/run-rime/*"
+      "Resource": "arn:aws:ssm:eu-central-1:463470983643:parameter/science-dev/poc-deployment/run-rime/*"
     }
   ]
 }
@@ -248,7 +248,7 @@ EOF
 # =============================================================
 
 create_ecs_security_group() {
-  local prefix="$1" vpc_id="$2" app_port="$3" alb_sg_id="$4"
+  local prefix="$1" vpc_id="$2" app_port="$3" cidr_ipv4="$4"
   local sg_name="${prefix}-ecs-traffic"
 
   local sg_id
@@ -270,9 +270,9 @@ create_ecs_security_group() {
   aws ec2 create-tags --resources "${sg_id}" --tags Key=Name,Value="Poc deployment ECS container instance SG" >/dev/null
 
   aws ec2 authorize-security-group-ingress \
-    --group-id "${sg_id}" \
-    --ip-permissions "IpProtocol=tcp,FromPort=${app_port},ToPort=${app_port},UserIdGroupPairs=[{GroupId=${alb_sg_id},Description='HTTP from ALB'}]" \
-    >/dev/null 2>&1 || true
+  --group-id "${sg_id}" \
+  --ip-permissions "IpProtocol=tcp,FromPort=${app_port},ToPort=${app_port},IpRanges=[{CidrIp=${cidr_ipv4},Description='HTTP from ALB'}]" \
+  >/dev/null 2>&1 || true
 
   aws ec2 authorize-security-group-egress \
     --group-id "${sg_id}" \
@@ -360,7 +360,7 @@ delete_alb_target_group() {
   log "Deleted target group: ${tg_arn}"
 }
 
-create_listener_rule_route_litserve() {
+create_listener_rule_route() {
   local prefix="$1" listener_arn="$2" priority="$3" tg_arn="$4"
 
   local existing_rule_arn
@@ -377,14 +377,14 @@ create_listener_rule_route_litserve() {
   rule_arn="$(aws elbv2 create-rule \
     --listener-arn "${listener_arn}" \
     --priority "${priority}" \
-    --conditions "Field=path-pattern,Values=/${prefix}/*" \
+    --conditions "Field=path-pattern,Values=/poc-deployment/${prefix}/*" \
     --actions "Type=forward,TargetGroupArn=${tg_arn}" \
     --transforms "[
       {
         \"Type\": \"url-rewrite\",
         \"UrlRewriteConfig\": {
           \"Rewrites\": [
-            { \"Regex\": \"^/${prefix}(/.*)$\", \"Replace\": \"\$1\" }
+            { \"Regex\": \"^/poc-deployment/${prefix}(/.*)$\", \"Replace\": \"\$1\" }
           ]
         }
       }
@@ -420,14 +420,14 @@ create_ecs_task_definition() {
   local task_role_arn="$2"
   local execution_role_arn="$3"
   local app_port="$4"
-  local litserve_image="$5"     # or "PLACEHOLDER"
+  local image="$5"     # or "PLACEHOLDER"
   local log_group_name="$6"
   local aws_region="$7"
 
   local family="${prefix}-poc-deployment-task"
-  local container_name="litserve-container"
+  local container_name="poc-deployment-container"
 
-  if [[ "${litserve_image}" == "PLACEHOLDER" ]]; then
+  if [[ "${image}" == "PLACEHOLDER" ]]; then
     # No healthCheck key at all (omit), include command
     cat > ecs-container-definitions.json <<EOF
 [
@@ -458,7 +458,7 @@ EOF
 [
   {
     "name": "${container_name}",
-    "image": "${litserve_image}",
+    "image": "${image}",
     "essential": true,
     "portMappings": [
       { "containerPort": ${app_port}, "protocol": "tcp", "appProtocol": "http" }
@@ -516,8 +516,8 @@ create_or_update_ecs_service() {
   local health_grace="$8"
 
   local service_name="${prefix}-poc-deployment-service"
-  local container_name="litserve-container"
-  local netcfg="awsvpcConfiguration={subnets=[${subnets_csv}],securityGroups=[${ecs_security_group_id}],assignPublicIp=ENABLED}"
+  local container_name="poc-deployment-container"
+  local netcfg="awsvpcConfiguration={subnets=[${subnets_csv}],securityGroups=[${ecs_security_group_id}],assignPublicIp=DISABLED}"
 
   local existing_status
   existing_status="$(aws ecs describe-services \
@@ -629,26 +629,26 @@ create_all_resources() {
   local s3_prefix="$3"
   local vpc_id="$4"
   local app_port="$5"
-  local alb_sg_id="$6"
+  local cidr_ipv4="$6"
   local listener_arn="$7"
   local priority="$8"
   local ecs_cluster_id="$9"
   local subnets_csv="${10}"
   local aws_region="${11}"
-  local litserve_image="${12}"
+  local image="${12}"
 
   require_nonempty "prefix" "${prefix}"
   require_nonempty "s3_bucket" "${s3_bucket}"
   require_nonempty "s3_prefix" "${s3_prefix}"
   require_nonempty "vpc_id" "${vpc_id}"
   require_nonempty "app_port" "${app_port}"
-  require_nonempty "alb_sg_id" "${alb_sg_id}"
+  require_nonempty "cidr_ipv4" "${cidr_ipv4}"
   require_nonempty "listener_arn" "${listener_arn}"
   require_nonempty "priority" "${priority}"
   require_nonempty "ecs_cluster_id" "${ecs_cluster_id}"
   require_nonempty "subnets_csv" "${subnets_csv}"
   require_nonempty "aws_region" "${aws_region}"
-  require_nonempty "litserve_image" "${litserve_image}"
+  require_nonempty "image" "${image}"
 
   # Base resources
   local log_group_name execution_role_arn task_role_arn
@@ -663,9 +663,9 @@ create_all_resources() {
   # Attach an SSM policy to the ECS task execution role
   attach_ecs_task_execution_ssm_policy "$prefix"
 
-  ecs_sg_id="$(create_ecs_security_group "$prefix" "$vpc_id" "$app_port" "$alb_sg_id")"
+  ecs_sg_id="$(create_ecs_security_group "$prefix" "$vpc_id" "$app_port" "$cidr_ipv4")"
   tg_arn="$(create_alb_target_group "$prefix" "$vpc_id" "$app_port")"
-  rule_arn="$(create_listener_rule_route_litserve "$prefix" "$listener_arn" "$priority" "$tg_arn")"
+  rule_arn="$(create_listener_rule_route "$prefix" "$listener_arn" "$priority" "$tg_arn")"
 
   # ECS task + service
   taskdef_arn="$(create_ecs_task_definition \
@@ -673,7 +673,7 @@ create_all_resources() {
     "$task_role_arn" \
     "$execution_role_arn" \
     "$app_port" \
-    "$litserve_image" \
+    "$image" \
     "$log_group_name" \
     "$aws_region")"
   
@@ -729,7 +729,7 @@ destroy_all_resources() {
   aws iam delete-role --role-name "${prefix}-poc-deployment-task-execution-role" >/dev/null
 
   # CloudWatch log group
-  aws logs delete-log-group --log-group-name "${prefix}-litserve-logs" >/dev/null
+  aws logs delete-log-group --log-group-name "poc-deployment-${prefix}-logs" >/dev/null
 
   log "All resources removed for prefix: ${prefix}"
 }
@@ -738,7 +738,7 @@ usage() {
   echo "" >&2
   echo "Usage:" >&2
   echo "  Create:" >&2
-  echo "    ./create_resources.sh create <prefix> <s3_bucket> <s3_prefix> <vpc_id> <app_port> <alb_sg_id> <listener_arn> <priority> <ecs_cluster_id> <subnets_csv> <aws_region> <litserve_image|PLACEHOLDER>" >&2
+  echo "    ./create_resources.sh create <prefix> <s3_bucket> <s3_prefix> <vpc_id> <app_port> <cidr_ipv4> <listener_arn> <priority> <ecs_cluster_id> <subnets_csv> <aws_region> <image|PLACEHOLDER>" >&2
   echo "" >&2
   echo "  Destroy:" >&2
   echo "    ./create_resources.sh destroy <prefix> <vpc_id> <listener_arn> <priority> <ecs_cluster_id>" >&2

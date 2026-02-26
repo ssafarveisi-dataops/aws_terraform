@@ -16,7 +16,7 @@ on:
         type: string
 
 env:
-  AWS_REGION: "eu-central-1"
+  AWS_REGION: "eu-west-1"
 
 permissions:
   id-token: write # for OIDC to assume AWS role
@@ -109,7 +109,7 @@ jobs:
           shell: bash
           env:
             VPC_ID: ${{ vars.VPC_ID }}
-            ALB_SG_ID: ${{ vars.ALB_SG_ID }}
+            CIDR_IPV4: ${{ vars.CIDR_IPV4 }}
             LISTENER_ARN: ${{ vars.LISTENER_ARN }}
             ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
             SUBNETS_CSV: ${{ vars.SUBNETS_CSV }}
@@ -130,7 +130,7 @@ jobs:
             "${S3_PREFIX}" \
             "${VPC_ID}" \
             "${APP_PORT}" \
-            "${ALB_SG_ID}" \
+            "${CIDR_IPV4}" \
             "${LISTENER_ARN}" \
             "${PRIORITY}" \
             "${ECS_CLUSTER_ID}" \

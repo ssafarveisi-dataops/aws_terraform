@@ -6,22 +6,18 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.28"
     }
-    archive = {
-      source  = "hashicorp/archive"
-      version = "~> 2.0"
-    }
   }
 
   backend "s3" {
-    region       = "eu-central-1"
-    bucket       = "sajad-aws-s3-bucket"
+    region       = "eu-west-1"
+    bucket       = "data-tf-backend"
     use_lockfile = true
     encrypt      = true
-    kms_key_id   = "arn:aws:kms:eu-central-1:598520881431:key/c028cd8f-4a67-42ae-9054-bdf6c7999fde"
-    key          = "terraform/aws/state-files/example2/terraform.tfstate"
+    kms_key_id   = "arn:aws:kms:eu-west-1:514595551765:key/78f573d5-804c-4c04-9a30-810f853e62c7"
+    key          = "cognism/aws/environments/data-dev/science/poc_deployment/full/infrastructure/terraform.tfstate"
   }
 }
 
 provider "aws" {
-  region = "eu-central-1"
+  region = "eu-west-1"
 }

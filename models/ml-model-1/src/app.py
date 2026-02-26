@@ -98,7 +98,7 @@ def create_app() -> FastAPI:
         # must NOT start or end with '/'
         if root_path.startswith("/") or root_path.endswith("/"):
             raise RuntimeError(
-                "ROOT_PATH must NOT start or end with '/'. Example: ROOT_PATH=ml-model-1"
+                "ROOT_PATH must NOT start or end with '/'. Example: ROOT_PATH=poc-deployment/ml-model-1"
             )
         # FastAPI expects leading slash in root_path
         root_path_final = f"/{root_path}"

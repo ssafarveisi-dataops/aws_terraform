@@ -9,9 +9,9 @@ on:
         type: string
       
 env:
-  AWS_REGION: "eu-central-1"
+  AWS_REGION: "eu-west-1"
   ECS_CLUSTER: "poc-deployment-cluster"
-  ECR_REPOSITORY: "dataops-poc-deployment"
+  ECR_REPOSITORY: "poc-deployment"
 
 permissions:
   id-token: write # Required for OIDC authentication to assume AWS role
@@ -131,10 +131,10 @@ jobs:
         shell: bash
         env:
           FAMILY: ${{ steps.parse.outputs.model_dir }}-poc-deployment-task
-          TASK_ROLE_ARN: arn:aws:iam::598520881431:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-role
-          EXEC_ROLE_ARN: arn:aws:iam::598520881431:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-execution-role
+          TASK_ROLE_ARN: arn:aws:iam::463470983643:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-role
+          EXEC_ROLE_ARN: arn:aws:iam::463470983643:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-execution-role
           IMAGE: ${{ steps.build-push-image.outputs.image }}
-          LOG_GROUP: ${{ steps.parse.outputs.model_dir }}-litserve-logs
+          LOG_GROUP: poc-deployment-${{ steps.parse.outputs.model_dir }}-logs
         run: |
           ./render-task-def.sh ${{ steps.parse.outputs.config_path }} taskdef.template.json taskdef.rendered.json
 
