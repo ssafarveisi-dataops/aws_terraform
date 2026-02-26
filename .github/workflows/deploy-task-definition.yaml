@@ -47,6 +47,8 @@ jobs:
           UV_LOCK_FILE="${MODEL_PATH}/uv.lock"
           SRC_FOLDER="${MODEL_PATH}/src"
 
+          [[ -d "${MODEL_PATH}" ]] || { echo "ERROR: ${MODEL_PATH} does not exist" >&2; exit 1; }
+
           [[ -f "${DOCKERFILE_PATH}" ]] || { echo "ERROR: Missing Dockerfile at ${DOCKERFILE_PATH}" >&2; exit 1; }
           [[ -f "${PYTHON_VERSION_FILE}" ]] || { echo "ERROR: Missing .python-version at ${PYTHON_VERSION_FILE}" >&2; exit 1; }
           [[ -f "${CONFIG_PATH}" ]] || { echo "ERROR: Missing config.yaml at ${CONFIG_PATH}" >&2; exit 1; }
