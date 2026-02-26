@@ -13,7 +13,7 @@
   },
   "containerDefinitions": [
     {
-      "name": "litserve-container",
+      "name": "poc-deployment-container",
       "image": "IMAGE",
       "command": [],
       "portMappings": [
