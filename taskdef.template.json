@@ -43,7 +43,7 @@
           "awslogs-group": "LOG_GROUP",
           "mode": "non-blocking",
           "max-buffer-size": "25m",
-          "awslogs-region": "eu-central-1",
+          "awslogs-region": "eu-west-1",
           "awslogs-stream-prefix": "ecs"
         }
       }

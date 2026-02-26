@@ -177,7 +177,7 @@ attach_ecs_task_execution_ssm_policy() {
       "Sid": "SSMAccess",
       "Effect": "Allow",
       "Action": "ssm:GetParameters",
-      "Resource": "arn:aws:ssm:eu-central-1:463470983643:parameter/science-dev/poc-deployment/run-rime/*"
+      "Resource": "arn:aws:ssm:eu-west-1:463470983643:parameter/science-dev/poc-deployment/run-rime/*"
     }
   ]
 }
