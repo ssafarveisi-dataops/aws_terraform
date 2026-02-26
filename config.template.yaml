@@ -12,7 +12,7 @@ app:
         - name: S3_PREFIX # Required
           value: <string> # (2-1) # It should be the name of the subdirectory under `models`
         - name: ROOT_PATH # Required
-          value: <string> # (2-2)
+          value: poc-deployment/<string> # (2-2) # DO NOT remove the prefix
         # Add more env variables
       secrets: [] # Add if the container needs it at runtime. Otherwise, set `secrets: []`
         # Add more secrets

@@ -12,7 +12,7 @@ app:
         - name: S3_PREFIX
           value: ml-model-1 # (2-1)
         - name: ROOT_PATH
-          value: poc-deployment/ml-model-1 # (2-2) # Keep the `poc-deployment` prefix as is
+          value: poc-deployment/ml-model-1 # (2-2)
       secrets:
         - name: OPENAPI_KEY
           value: "arn:aws:ssm:eu-west-1:463470983643:parameter/science-dev/poc-deployment/run-rime/openapi_key"
