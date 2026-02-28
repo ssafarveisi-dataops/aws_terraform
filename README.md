@@ -16,6 +16,6 @@ Please use the templates provided under `templates` to learn what you need to ad
 > [!NOTE]
 > The user will be notified via Slack about the success or failure of the GitHub workflows.
 
-# Running POC
+## Running POC
 
 After a successful deployment, the user can begin model evaluations by sending requests to `https://api.dev.science.cognism.cloud/poc-deployment/<subdirectory name>/predict`. The Swagger UI will be available at the `/docs` endpoint.
