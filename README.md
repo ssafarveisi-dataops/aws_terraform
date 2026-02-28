@@ -10,7 +10,12 @@ Please use the templates provided under `templates` to learn what you need to ad
 
 3) Once the PR is merged, the user can proceed with applying resources for the POC (see `.github/workflows/manage-resources.yaml`) before deploying the service on AWS (see `.github/workflows/deploy-task-definition.yaml`). For the first GitHub workflow, provide only the action (apply or destroy) and the subdirectory name (the POC model). For the second GitHub workflow, pass only the subdirectory name for which the service deployment should be executed.  
 
-> [!NOTE]
-> The user will be notified via Slack about the success or failure of the GitHub workflow.
 
 4) After the POC is complete, you can manually destroy the resources using `.github/workflows/manage-resources.yaml`. You can reapply the resources at any time.
+
+> [!NOTE]
+> The user will be notified via Slack about the success or failure of the GitHub workflows.
+
+# Running POC
+
+After a successful deployment, the user can begin model evaluations by sending requests to `https://api.dev.science.cognism.cloud/poc-deployment/<subdirectory name>/predict`. The Swagger UI will be available at the `/docs` endpoint.
