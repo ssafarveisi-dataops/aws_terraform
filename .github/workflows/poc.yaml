@@ -9,7 +9,7 @@ on:
         type: choice
         options:
           - infra  # If you only want to apply or destroy resources
-          - deploy # If you want to deploy a service
+          - deploy # If you want to deploy (update) a service
           - full   # If you want to both apply resources and deploy a service
       action:
         description: "Action to perform (infra only)"
