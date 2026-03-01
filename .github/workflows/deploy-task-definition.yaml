@@ -138,7 +138,7 @@ jobs:
           IMAGE: ${{ steps.build-push-image.outputs.image }}
           LOG_GROUP: poc-deployment-${{ steps.parse.outputs.model_dir }}-logs
         run: |
-          ./render-task-def.sh ${{ steps.parse.outputs.config_path }} taskdef.template.json taskdef.rendered.json
+          ./render-task-def.sh ${{ steps.parse.outputs.config_path }} taskdef.json taskdef.rendered.json
 
       - name: Deploy Amazon ECS Task Definition
         id: deploy-ecs-task
