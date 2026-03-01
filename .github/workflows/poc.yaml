@@ -268,12 +268,17 @@ jobs:
   # ===================
   deploy-task:
     name: Deploy Task manifest file
-    needs:
-      - validate-inputs
-      - manage-resources
-    if: |
-      (inputs.mode == 'deploy') ||
-      (inputs.mode == 'full' && inputs.action == 'apply')
+    needs: [validate-inputs, manage-resources]
+    if: >
+        always() &&
+        (
+            inputs.mode == 'deploy' ||
+            inputs.mode == 'full'
+        ) &&
+        (
+            needs.manage-resources.result == 'success' ||
+            needs.manage-resources.result == 'skipped'
+        )
     runs-on: ubuntu-latest
 
     steps:
@@ -281,9 +286,6 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: main
-
-      # ✅ EVERYTHING BELOW IS 100% UNCHANGED
-      # (your original deploy steps remain exactly the same)
 
       - name: Extract configurations for other steps
         id: parse
