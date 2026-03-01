@@ -16,6 +16,7 @@ on:
         required: false
         type: choice
         options:
+          - none   # Default value (e.g., when you only want to update or deploy a service)
           - apply
           - destroy
       model:
@@ -59,10 +60,12 @@ jobs:
             fi
           fi
 
-          if [[ "$MODE" == "deploy" && -n "$ACTION" ]]; then
-            echo "INFO: action input ignored for deploy-only mode."
+          if [[ "$MODE" == "infra" || "$MODE" == "full" ]]; then
+            if [[ "$ACTION" == "none" ]]; then
+              echo "ERROR: 'action' must be apply or destroy when mode is infra or full." >&2
+              exit 1
+            fi
           fi
-
   # ========================
   # JOB 1 — MANAGE RESOURCES
   # ========================
