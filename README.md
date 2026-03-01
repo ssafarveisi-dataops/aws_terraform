@@ -2,7 +2,7 @@
 
 ## Workflow to deploy a model for a POC
 
-1) Create a PR that adds two subdirectories with the same name under the `models` (source code, project dependencies, Dockerfile and the python version file) and `models_config` (POC configurations) directories. Use `-` as the separator in the name if needed (for example, experience-linker). The directory name must match the S3 prefix where the model artifacts are stored. For instance, if your model artifact `model.pth` is located at `s3://bucket/experience-linker/model.pth`, then both subdirectories should be named **experience-linker**. This ensures consistent naming across locations.
+1) Create a PR that adds two subdirectories with the same name under the `models` (source code, project dependencies, Dockerfile and the python version file) and `models_config` (POC configurations) directories. Use `-` as the separator in the name if needed (for example, experience-linker). The directory name must match the S3 prefix where the model artifacts are stored. For instance, if your model artifact `model.pth` is located at `s3://bucket/experience-linker/model.pth`, then both subdirectories should be named **experience-linker**. This ensures consistent naming across locations. At runtime, your application will have access to all objects with the prefix `s3://bucket/<subdirectory name>/`.
 
 Please use the templates provided under `templates` to learn what you need to add to your subdirectories.
 
