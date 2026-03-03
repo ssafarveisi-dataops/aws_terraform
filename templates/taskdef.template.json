@@ -13,7 +13,7 @@
   },
   "containerDefinitions": [
     {
-      "name": "poc-deployment-container",
+      "name": "poc-model-deployment-container",
       "image": "IMAGE",
       "command": [],
       "portMappings": [

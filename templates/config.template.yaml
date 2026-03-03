@@ -1,25 +1,26 @@
 ########## GUIDE ##########
-# (1-1) and (1-2) should have the same entry
-# (2-1), (2-2), and (2-3) should have the same entry
+# (1) Please do not change
+# (2) Do not change as we use the same bucket for all poc deployments
+# (3) Note the prefix <subdirectory name> for the key (distinguishing different poc deployments)
+# (4) Should always be poc-model-deployment/<subdirectory name>
+# (5) Please do not change (shared among poc deployments)
+# (6) This should be unique for each poc deployment
 ########## GUIDE ##########
 app:
   container:
-    image: PLACEHOLDER # Please do not change (used when we initially provision the infrastructure)
+    image: PLACEHOLDER # (1)
     run_time:
       env:
-        - name: S3_BUCKET # Required
-          value: <string> # (1-1)
-        - name: S3_PREFIX # Required
-          value: <string> # (2-1) # It should be the name of the subdirectory under `models`
-        - name: ROOT_PATH # Required
-          value: poc-deployment/<string> # (2-2) # DO NOT remove the prefix
-        # Add more env variables
+        - name: S3_BUCKET # S3 bucket where artifacts are located (required)
+          value: science-poc-model-deployment # (2)
+        - name: S3_KEY # S3 key for the model artifact (optional)
+          value: <subdirectory name>/A/B/... # (3)
+        - name: ROOT_PATH # ROOT PATH for the FastAPI application (required)
+          value: poc-model-deployment/<subdirectory name> # (4)
+        # Add more env variables depending on what you need at runtime (e.g., folder in s3 where your artifacts are located)
       secrets: [] # Add if the container needs it at runtime. Otherwise, set `secrets: []`
         # Add more secrets
-  artifacts:
-    s3_bucket: <string> # (1-2)
-    s3_prefix: <string> # (2-3) Or a/b/c (no leading or trailing / and a, b and c are folders)
   port_mapping: 
-    port: 8080 # Please do not change (shared among poc deployments)
+    port: 8080 # (5)
 routing: # ALB listener rule
-  priority: <integer> # This should be unique for each poc deployment
+  priority: <integer> # (6)

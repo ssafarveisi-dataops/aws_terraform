@@ -51,17 +51,16 @@ class PredictResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     bucket = os.environ.get("S3_BUCKET")
-    prefix = os.environ.get("S3_PREFIX")
+    key = os.environ.get("S3_KEY")
     openapi_key = os.environ.get("OPENAPI_KEY")
     
     print(f"The OpenAPI key is: {openapi_key}")
 
-    if not bucket or not prefix:
-        raise RuntimeError("Missing required env vars: S3_BUCKET and/or S3_PREFIX")
+    if not bucket or not key:
+        raise RuntimeError("Missing required env vars: S3_BUCKET and/or S3_KEY")
 
     s3 = boto3.client("s3")
     local_path = "/tmp/model.pth"
-    key = f"{prefix.rstrip('/')}/model.pth"
 
     try:
         s3.download_file(bucket, key, local_path)
@@ -98,7 +97,7 @@ def create_app() -> FastAPI:
         # must NOT start or end with '/'
         if root_path.startswith("/") or root_path.endswith("/"):
             raise RuntimeError(
-                "ROOT_PATH must NOT start or end with '/'. Example: ROOT_PATH=poc-deployment/ml-model-1"
+                "ROOT_PATH must NOT start or end with '/'. Example: ROOT_PATH=poc-model-deployment/ml-model-1"
             )
         # FastAPI expects leading slash in root_path
         root_path_final = f"/{root_path}"

@@ -58,7 +58,7 @@ require_nonempty() {
 
 create_log_group() {
   local prefix="$1"
-  local lg_name="poc-deployment-${prefix}-logs"
+  local lg_name="poc-model-deployment-${prefix}-logs"
 
   local existing
   existing="$(aws logs describe-log-groups \
@@ -83,7 +83,7 @@ create_log_group() {
 
 create_alb_target_group() {
   local prefix="$1" vpc_id="$2" app_port="$3"
-  local tg_name="${prefix}-poc-deployment-tg"
+  local tg_name="${prefix}-poc-model-deployment-tg"
 
   local tg_arn
   tg_arn="$(aws elbv2 describe-target-groups --names "${tg_name}" \
@@ -113,7 +113,7 @@ create_alb_target_group() {
 
 delete_alb_target_group() {
   local prefix="$1"
-  local tg_name="${prefix}-poc-deployment-tg"
+  local tg_name="${prefix}-poc-model-deployment-tg"
 
   local tg_arn
   tg_arn="$(aws elbv2 describe-target-groups --names "${tg_name}" \
@@ -145,14 +145,14 @@ create_listener_rule_route() {
   rule_arn="$(aws elbv2 create-rule \
     --listener-arn "${listener_arn}" \
     --priority "${priority}" \
-    --conditions "Field=path-pattern,Values=/poc-deployment/${prefix}/*" \
+    --conditions "Field=path-pattern,Values=/poc-model-deployment/${prefix}/*" \
     --actions "Type=forward,TargetGroupArn=${tg_arn}" \
     --transforms "[
       {
         \"Type\": \"url-rewrite\",
         \"UrlRewriteConfig\": {
           \"Rewrites\": [
-            { \"Regex\": \"^/poc-deployment/${prefix}(/.*)$\", \"Replace\": \"\$1\" }
+            { \"Regex\": \"^/poc-model-deployment/${prefix}(/.*)$\", \"Replace\": \"\$1\" }
           ]
         }
       }
@@ -192,8 +192,8 @@ create_ecs_task_definition() {
   local log_group_name="$6"
   local aws_region="$7"
 
-  local family="${prefix}-poc-deployment-task"
-  local container_name="poc-deployment-container"
+  local family="${prefix}-poc-model-deployment-task"
+  local container_name="poc-model-deployment-container"
 
   if [[ "${image}" == "PLACEHOLDER" ]]; then
     # No healthCheck key at all (omit), include command
@@ -283,8 +283,8 @@ create_or_update_ecs_service() {
   local subnets_csv="$7"
   local health_grace="$8"
 
-  local service_name="${prefix}-poc-deployment-service"
-  local container_name="poc-deployment-container"
+  local service_name="${prefix}-poc-model-deployment-service"
+  local container_name="poc-model-deployment-container"
   local netcfg="awsvpcConfiguration={subnets=[${subnets_csv}],securityGroups=[${ecs_security_group_id}],assignPublicIp=DISABLED}"
 
   local existing_status
@@ -331,7 +331,7 @@ delete_ecs_service() {
   local prefix="$1"
   local ecs_cluster_id="$2"
 
-  local service_name="${prefix}-poc-deployment-service"
+  local service_name="${prefix}-poc-model-deployment-service"
 
   local status
   status="$(aws ecs describe-services \
@@ -364,7 +364,7 @@ delete_ecs_service() {
 
 deregister_task_definitions_for_family() {
   local prefix="$1"
-  local family="${prefix}-poc-deployment-task"
+  local family="${prefix}-poc-model-deployment-task"
 
   # Deregister ALL revisions for this family
   local arns
@@ -472,7 +472,7 @@ destroy_all_resources() {
   delete_alb_target_group "${prefix}"
 
   # CloudWatch log group
-  aws logs delete-log-group --log-group-name "poc-deployment-${prefix}-logs" >/dev/null
+  aws logs delete-log-group --log-group-name "poc-model-deployment-${prefix}-logs" >/dev/null
 
   log "All resources removed for prefix: ${prefix}"
 }
