@@ -152,7 +152,7 @@ jobs:
             "${VPC_ID}" \
             "${APP_PORT}" \
             "${LISTENER_ARN}" \
-            "${EXECUTION_ROLE_ARN}" \
+            "${EXEC_ROLE_ARN}" \
             "${TASK_ROLE_ARN}" \
             "${ECS_SG_ID}" \
             "${PRIORITY}" \
