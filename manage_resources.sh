@@ -83,7 +83,7 @@ create_log_group() {
 
 create_alb_target_group() {
   local prefix="$1" vpc_id="$2" app_port="$3"
-  local tg_name="${prefix}-poc-model-deployment-tg"
+  local tg_name="${prefix}-poc-deployment-tg"
 
   local tg_arn
   tg_arn="$(aws elbv2 describe-target-groups --names "${tg_name}" \
@@ -113,7 +113,7 @@ create_alb_target_group() {
 
 delete_alb_target_group() {
   local prefix="$1"
-  local tg_name="${prefix}-poc-model-deployment-tg"
+  local tg_name="${prefix}-poc-deployment-tg"
 
   local tg_arn
   tg_arn="$(aws elbv2 describe-target-groups --names "${tg_name}" \
