@@ -7,4 +7,6 @@ locals {
     eu-west-1b = "subnet-02ce1a66b1b1f912f"
     eu-west-1c = "subnet-0e8fac954881a8fc9"
   }
+  app_port       = 8080
+  s3_bucket_name = "science-poc-deployment"
 }

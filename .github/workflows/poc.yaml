@@ -93,8 +93,6 @@ jobs:
           fi
 
           IMAGE="$(yq -r '.app.container.image' "${CONFIG_PATH}")"
-          S3_BUCKET="$(yq -r '.app.artifacts.s3_bucket' "${CONFIG_PATH}")"
-          S3_PREFIX="$(yq -r '.app.artifacts.s3_prefix' "${CONFIG_PATH}")"
           APP_PORT="$(yq -r '.app.port_mapping.port' "${CONFIG_PATH}")"
           PRIORITY="$(yq -r '.routing.priority' "${CONFIG_PATH}")"
 
@@ -108,22 +106,13 @@ jobs:
           }
 
           validate_not_empty "app.container.image" "$IMAGE"
-          validate_not_empty "app.artifacts.s3_bucket" "$S3_BUCKET"
-          validate_not_empty "app.artifacts.s3_prefix" "$S3_PREFIX"
           validate_not_empty "app.port_mapping.port" "$APP_PORT"
           validate_not_empty "routing.priority" "$PRIORITY"
-
-          if [[ "$S3_PREFIX" == /* || "$S3_PREFIX" == */ ]]; then
-            echo "ERROR: app.artifacts.s3_prefix cannot start or end with '/': ${S3_PREFIX}" >&2
-            exit 1
-          fi
 
           {
             echo "action=${ACTION}"
             echo "config_path=${CONFIG_PATH}"
             echo "image=${IMAGE}"
-            echo "s3_bucket=${S3_BUCKET}"
-            echo "s3_prefix=${S3_PREFIX}"
             echo "app_port=${APP_PORT}"
             echo "priority=${PRIORITY}"
             echo "prefix=${MODEL_DIR}"
@@ -143,8 +132,10 @@ jobs:
         shell: bash
         env:
           VPC_ID: ${{ vars.VPC_ID }}
-          CIDR_IPV4: ${{ vars.CIDR_IPV4 }}
           LISTENER_ARN: ${{ vars.LISTENER_ARN }}
+          EXECUTION_ROLE_ARN: ${{ vars.EXECUTION_ROLE_ARN }}
+          TASK_ROLE_ARN: ${{ vars.TASK_ROLE_ARN}}
+          ECS_SG_ID: ${{ vars.ECS_SG_ID }}
           ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
           SUBNETS_CSV: ${{ vars.SUBNETS_CSV }}
           AWS_REGION: ${{ env.AWS_REGION }}
@@ -153,19 +144,17 @@ jobs:
 
           PREFIX="${{ steps.parse.outputs.prefix }}"
           IMAGE="${{ steps.parse.outputs.image }}"
-          S3_BUCKET="${{ steps.parse.outputs.s3_bucket }}"
-          S3_PREFIX="${{ steps.parse.outputs.s3_prefix }}"
           PRIORITY="${{ steps.parse.outputs.priority }}"
           APP_PORT="${{ steps.parse.outputs.app_port }}"
 
           ./manage_resources.sh create \
             "${PREFIX}" \
-            "${S3_BUCKET}" \
-            "${S3_PREFIX}" \
             "${VPC_ID}" \
             "${APP_PORT}" \
-            "${CIDR_IPV4}" \
             "${LISTENER_ARN}" \
+            "${EXECUTION_ROLE_ARN}" \
+            "${TASK_ROLE_ARN}" \
+            "${ECS_SG_ID}" \
             "${PRIORITY}" \
             "${ECS_CLUSTER_ID}" \
             "${SUBNETS_CSV}" \
@@ -176,7 +165,6 @@ jobs:
         if: steps.parse.outputs.action == 'destroy'
         shell: bash
         env:
-          VPC_ID: ${{ vars.VPC_ID }}
           LISTENER_ARN: ${{ vars.LISTENER_ARN }}
           ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
         run: |
@@ -187,7 +175,6 @@ jobs:
 
           ./manage_resources.sh destroy \
             "${PREFIX}" \
-            "${VPC_ID}" \
             "${LISTENER_ARN}" \
             "${PRIORITY}" \
             "${ECS_CLUSTER_ID}"
@@ -210,8 +197,7 @@ jobs:
                   "color": "2EB67D",
                   "fields": [
                     { "title": "Model", "value": "${{ steps.parse.outputs.prefix }}", "short": true },
-                    { "title": "ALB prefix", "value": "${{ steps.parse.outputs.prefix }}", "short": true },
-                    { "title": "S3", "value": "s3://${{ steps.parse.outputs.s3_bucket }}/${{ steps.parse.outputs.s3_prefix }}", "short": false },
+                    { "title": "ALB prefix", "value": "poc-deployment/${{ steps.parse.outputs.prefix }}", "short": true },
                     { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
                   ]
                 }
@@ -382,8 +368,8 @@ jobs:
         shell: bash
         env:
           FAMILY: ${{ steps.parse.outputs.model_dir }}-poc-deployment-task
-          TASK_ROLE_ARN: arn:aws:iam::463470983643:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-role
-          EXEC_ROLE_ARN: arn:aws:iam::463470983643:role/${{ steps.parse.outputs.model_dir }}-poc-deployment-task-execution-role
+          TASK_ROLE_ARN: arn:aws:iam::463470983643:role/poc-deployment-task-role
+          EXEC_ROLE_ARN: arn:aws:iam::463470983643:role/poc-deployment-task-execution-role
           IMAGE: ${{ steps.build-push-image.outputs.image }}
           LOG_GROUP: poc-deployment-${{ steps.parse.outputs.model_dir }}-logs
         run: |
@@ -408,7 +394,7 @@ jobs:
           payload: |
             {
               "channel": "${{ vars.SLACK_CHANNEL_ID }}",
-              "text": "✅ 🚀 ECS deployment successful: *${{ steps.parse.outputs.model_dir }}*",
+              "text": "✅ 🚀 ECS service deployment successful: *${{ steps.parse.outputs.model_dir }}*",
               "attachments": [
                 {
                   "color": "2EB67D",
@@ -430,7 +416,7 @@ jobs:
           payload: |
             {
               "channel": "${{ vars.SLACK_CHANNEL_ID }}",
-              "text": "❌ ECS deployment failed: *${{ steps.parse.outputs.model_dir }}*",
+              "text": "❌ ECS service deployment failed: *${{ steps.parse.outputs.model_dir }}*",
               "attachments": [
                 {
                   "color": "E01E5A",

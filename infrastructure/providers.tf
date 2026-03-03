@@ -15,9 +15,12 @@ terraform {
     encrypt      = true
     kms_key_id   = "arn:aws:kms:eu-west-1:514595551765:key/78f573d5-804c-4c04-9a30-810f853e62c7"
     key          = "cognism/aws/environments/data-dev/science/poc_deployment/full/infrastructure/terraform.tfstate"
+    profile      = "cognism-data-mlops-dev"
   }
 }
 
 provider "aws" {
-  region = "eu-west-1"
+  shared_credentials_files = ["~/.aws/credentials"]
+  region                   = "eu-west-1"
+  profile                  = "cognism-data-mlops-dev"
 }

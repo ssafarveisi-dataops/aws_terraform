@@ -25,52 +25,11 @@ aws_capture() {
 }
 
 cleanup_temp_files() {
-  rm -f ecs-container-definitions.json \
-        ecs-task-s3-policy.json \
-        ecs-task-trust.json \
-        ecs-task-execution-ssm-policy.json
-
+  rm -f ecs-container-definitions.json 
   log "Cleaned up temporary ECS JSON files"
 }
 
-wait_for_sg_detach() {
-  local sg_id="$1"
-  local timeout_seconds="${2:-300}"   # default: 5 minutes
-  local sleep_seconds="${3:-10}"      # default: 10s
-
-  log "Waiting for security group ${sg_id} to be released (timeout=${timeout_seconds}s)..."
-
-  local start now
-  start="$(date +%s)"
-
-  while true; do
-    # count ENIs still referencing the SG
-    local count
-    count="$(aws ec2 describe-network-interfaces \
-      --filters "Name=group-id,Values=${sg_id}" \
-      --query "length(NetworkInterfaces)" \
-      --output text)"
-
-    if [[ "${count}" == "0" ]]; then
-      log "Security group ${sg_id} is no longer referenced by any ENIs."
-      return 0
-    fi
-
-    now="$(date +%s)"
-    if (( now - start >= timeout_seconds )); then
-      echo "ERROR: Timed out waiting for SG ${sg_id} to detach. Still referenced by ${count} ENI(s)." >&2
-      aws ec2 describe-network-interfaces \
-        --filters "Name=group-id,Values=${sg_id}" \
-        --query "NetworkInterfaces[].{ENI:NetworkInterfaceId,Status:Status,Desc:Description,Attachment:Attachment.InstanceId,PrivateIP:PrivateIpAddress,Subnet:SubnetId}" \
-        --output table >&2
-      exit 1
-    fi
-
-    sleep "${sleep_seconds}"
-  done
-}
-
-# Optional: improve errexit behavior in modern bash (safe no-op if unsupported)
+# improve errexit behavior in modern bash (safe no-op if unsupported)
 shopt -s inherit_errexit 2>/dev/null || true
 
 # -------------------------------------------------------------
@@ -94,7 +53,7 @@ require_nonempty() {
 }
 
 # =============================================================
-# PART A) CloudWatch Log Group + IAM Roles
+# PART A) CloudWatch Log Group
 # =============================================================
 
 create_log_group() {
@@ -118,200 +77,9 @@ create_log_group() {
   echo "${lg_name}"
 }
 
-create_trust_policy() {
-  cat <<EOF > ecs-task-trust.json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": { "Service": "ecs-tasks.amazonaws.com" },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-}
-
-create_ecs_task_execution_role() {
-  local prefix="$1"
-  local role_name="${prefix}-poc-deployment-task-execution-role"
-
-  create_trust_policy
-
-  if ! aws iam get-role --role-name "${role_name}" >/dev/null 2>&1; then
-    aws iam create-role --role-name "${role_name}" --assume-role-policy-document file://ecs-task-trust.json >/dev/null
-    log "Created execution role: ${role_name}"
-  else
-    log "Execution role already exists: ${role_name}"
-  fi
-
-  local attached
-  attached="$(aws iam list-attached-role-policies \
-    --role-name "${role_name}" \
-    --query "AttachedPolicies[?PolicyArn=='arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'].PolicyArn | [0]" \
-    --output text)"
-
-  if [[ "${attached}" != "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy" ]]; then
-    aws iam attach-role-policy --role-name "${role_name}" \
-      --policy-arn "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy" >/dev/null
-    log "Attached AmazonECSTaskExecutionRolePolicy to: ${role_name}"
-  else
-    log "Managed policy already attached to: ${role_name}"
-  fi
-
-  aws iam get-role --role-name "${role_name}" --query "Role.Arn" --output text
-}
-
-attach_ecs_task_execution_ssm_policy() {
-  local prefix="$1"
-
-  local role_name="${prefix}-poc-deployment-task-execution-role"
-  local policy_name="${prefix}-poc-deployment-task-execution-ssm"
-
-  cat <<EOF > ecs-task-execution-ssm-policy.json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "SSMAccess",
-      "Effect": "Allow",
-      "Action": "ssm:GetParameters",
-      "Resource": "arn:aws:ssm:eu-west-1:463470983643:parameter/science-dev/poc-deployment/run-rime/*"
-    }
-  ]
-}
-EOF
-
-  aws iam put-role-policy --role-name "${role_name}" --policy-name "${policy_name}" \
-    --policy-document file://ecs-task-execution-ssm-policy.json >/dev/null
-
-  log "Inline SSM policy attached/updated: ${policy_name} -> ${role_name}"
-}
-
-create_ecs_task_role() {
-  local prefix="$1"
-  local role_name="${prefix}-poc-deployment-task-role"
-
-  create_trust_policy
-
-  if ! aws iam get-role --role-name "${role_name}" >/dev/null 2>&1; then
-    aws iam create-role --role-name "${role_name}" --assume-role-policy-document file://ecs-task-trust.json >/dev/null
-    log "Created task role: ${role_name}"
-  else
-    log "Task role already exists: ${role_name}"
-  fi
-
-  aws iam get-role --role-name "${role_name}" --query "Role.Arn" --output text
-}
-
-attach_ecs_task_s3_policy() {
-  local prefix="$1"
-  local s3_bucket="$2"
-  local s3_prefix="$3"
-
-  local role_name="${prefix}-poc-deployment-task-role"
-  local policy_name="${prefix}-poc-deployment-task-execution-s3"
-
-  cat <<EOF > ecs-task-s3-policy.json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "ListBucket",
-      "Effect": "Allow",
-      "Action": "s3:ListBucket",
-      "Resource": "arn:aws:s3:::${s3_bucket}"
-    },
-    {
-      "Sid": "ReadObjects",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:GetObjectVersion",
-        "s3:GetObjectTagging"
-      ],
-      "Resource": "arn:aws:s3:::${s3_bucket}/${s3_prefix}/*"
-    }
-  ]
-}
-EOF
-
-  aws iam put-role-policy --role-name "${role_name}" --policy-name "${policy_name}" \
-    --policy-document file://ecs-task-s3-policy.json >/dev/null
-
-  log "Inline S3 policy attached/updated: ${policy_name} -> ${role_name}"
-}
-
 # =============================================================
-# PART B) Security Group + ALB Target Group + Listener Rule
+# PART B) ALB Target Group + Listener Rule
 # =============================================================
-
-create_ecs_security_group() {
-  local prefix="$1" vpc_id="$2" app_port="$3" cidr_ipv4="$4"
-  local sg_name="${prefix}-ecs-traffic"
-
-  local sg_id
-  sg_id="$(aws ec2 describe-security-groups \
-    --filters "Name=vpc-id,Values=${vpc_id}" "Name=group-name,Values=${sg_name}" \
-    --query "SecurityGroups[0].GroupId" --output text)"
-
-  if [[ -z "${sg_id}" || "${sg_id}" == "None" ]]; then
-    sg_id="$(aws ec2 create-security-group \
-      --group-name "${sg_name}" \
-      --description "Allow inbound traffic to ECS containers from ALB" \
-      --vpc-id "${vpc_id}" \
-      --query "GroupId" --output text)"
-    log "Created security group: ${sg_id}"
-  else
-    log "Security group already exists: ${sg_id}"
-  fi
-
-  aws ec2 create-tags --resources "${sg_id}" --tags Key=Name,Value="Poc deployment ECS container instance SG" >/dev/null
-
-  aws ec2 authorize-security-group-ingress \
-  --group-id "${sg_id}" \
-  --ip-permissions "IpProtocol=tcp,FromPort=${app_port},ToPort=${app_port},IpRanges=[{CidrIp=${cidr_ipv4},Description='HTTP from ALB'}]" \
-  >/dev/null 2>&1 || true
-
-  aws ec2 authorize-security-group-egress \
-    --group-id "${sg_id}" \
-    --ip-permissions "IpProtocol=-1,IpRanges=[{CidrIp=0.0.0.0/0}]" \
-    >/dev/null 2>&1 || true
-
-  echo "${sg_id}"
-}
-
-delete_ecs_security_group() {
-  local prefix="$1"
-  local vpc_id="$2"
-
-  local sg_name="${prefix}-ecs-traffic"
-
-  local sg_id
-  sg_id="$(aws ec2 describe-security-groups \
-    --filters "Name=vpc-id,Values=${vpc_id}" "Name=group-name,Values=${sg_name}" \
-    --query "SecurityGroups[0].GroupId" --output text)"
-
-  if [[ -z "${sg_id}" || "${sg_id}" == "None" ]]; then
-    log "Security group not found: ${sg_name}"
-    return 0
-  fi
-
-  # First attempt
-  if aws ec2 delete-security-group --group-id "${sg_id}" >/dev/null 2>&1; then
-    log "Deleted security group: ${sg_id}"
-    return 0
-  fi
-
-  # If it failed, wait for detach and try once more (still strict: exits on timeout or second failure)
-  log "Security group ${sg_id} still has dependencies. Waiting and retrying..."
-  wait_for_sg_detach "${sg_id}" 180 10
-
-  # Second attempt (if this fails, script will crash because set -e)
-  aws ec2 delete-security-group --group-id "${sg_id}" >/dev/null
-  log "Deleted security group after wait: ${sg_id}"
-}
 
 create_alb_target_group() {
   local prefix="$1" vpc_id="$2" app_port="$3"
@@ -625,12 +393,12 @@ deregister_task_definitions_for_family() {
 
 create_all_resources() {
   local prefix="$1"
-  local s3_bucket="$2"
-  local s3_prefix="$3"
-  local vpc_id="$4"
-  local app_port="$5"
-  local cidr_ipv4="$6"
-  local listener_arn="$7"
+  local vpc_id="$2"
+  local app_port="$3"
+  local listener_arn="$4"
+  local execution_role_arn="$5"
+  local task_role_arn="$6"
+  local ecs_sg_id="$7"
   local priority="$8"
   local ecs_cluster_id="$9"
   local subnets_csv="${10}"
@@ -638,12 +406,12 @@ create_all_resources() {
   local image="${12}"
 
   require_nonempty "prefix" "${prefix}"
-  require_nonempty "s3_bucket" "${s3_bucket}"
-  require_nonempty "s3_prefix" "${s3_prefix}"
   require_nonempty "vpc_id" "${vpc_id}"
   require_nonempty "app_port" "${app_port}"
-  require_nonempty "cidr_ipv4" "${cidr_ipv4}"
   require_nonempty "listener_arn" "${listener_arn}"
+  require_nonempty "execution_role_arn" "${execution_role_arn}"
+  require_nonempty "task_role_arn" "${task_role_arn}"
+  require_nonempty "ecs_sg_id" "${ecs_sg_id}"
   require_nonempty "priority" "${priority}"
   require_nonempty "ecs_cluster_id" "${ecs_cluster_id}"
   require_nonempty "subnets_csv" "${subnets_csv}"
@@ -651,19 +419,12 @@ create_all_resources() {
   require_nonempty "image" "${image}"
 
   # Base resources
-  local log_group_name execution_role_arn task_role_arn
-  local ecs_sg_id tg_arn rule_arn
+  local log_group_name
+  local tg_arn rule_arn
   local taskdef_arn service_arn
 
   log_group_name="$(create_log_group "$prefix")"
-  execution_role_arn="$(create_ecs_task_execution_role "$prefix")"
-  task_role_arn="$(create_ecs_task_role "$prefix")"
-  # Attach a S3 policy to the ECS task role
-  attach_ecs_task_s3_policy "$prefix" "$s3_bucket" "$s3_prefix"
-  # Attach an SSM policy to the ECS task execution role
-  attach_ecs_task_execution_ssm_policy "$prefix"
 
-  ecs_sg_id="$(create_ecs_security_group "$prefix" "$vpc_id" "$app_port" "$cidr_ipv4")"
   tg_arn="$(create_alb_target_group "$prefix" "$vpc_id" "$app_port")"
   rule_arn="$(create_listener_rule_route "$prefix" "$listener_arn" "$priority" "$tg_arn")"
 
@@ -696,37 +457,19 @@ create_all_resources() {
 
 destroy_all_resources() {
   local prefix="$1"
-  local vpc_id="$2"
-  local listener_arn="$3"
-  local priority="$4"
-  local ecs_cluster_id="$5"
+  local listener_arn="$2"
+  local priority="$3"
+  local ecs_cluster_id="$4"
 
   log "Removing resources for prefix: ${prefix}"
 
-  # ECS first (so network + IAM can be deleted cleanly)
+  # ECS first
   delete_ecs_service "${prefix}" "${ecs_cluster_id}"
   deregister_task_definitions_for_family "${prefix}"
 
   # ALB/network resources
   delete_listener_rule_by_priority "${listener_arn}" "${priority}"
   delete_alb_target_group "${prefix}"
-  delete_ecs_security_group "${prefix}" "${vpc_id}"
-
-  # IAM cleanup (reverse-safe order)
-  aws iam delete-role-policy \
-    --role-name "${prefix}-poc-deployment-task-role" \
-    --policy-name "${prefix}-poc-deployment-task-execution-s3" >/dev/null
-
-  aws iam detach-role-policy \
-    --role-name "${prefix}-poc-deployment-task-execution-role" \
-    --policy-arn "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy" >/dev/null
-  
-  aws iam delete-role-policy \
-    --role-name "${prefix}-poc-deployment-task-execution-role" \
-    --policy-name "${prefix}-poc-deployment-task-execution-ssm" >/dev/null
-
-  aws iam delete-role --role-name "${prefix}-poc-deployment-task-role" >/dev/null
-  aws iam delete-role --role-name "${prefix}-poc-deployment-task-execution-role" >/dev/null
 
   # CloudWatch log group
   aws logs delete-log-group --log-group-name "poc-deployment-${prefix}-logs" >/dev/null
@@ -738,10 +481,10 @@ usage() {
   echo "" >&2
   echo "Usage:" >&2
   echo "  Create:" >&2
-  echo "    ./create_resources.sh create <prefix> <s3_bucket> <s3_prefix> <vpc_id> <app_port> <cidr_ipv4> <listener_arn> <priority> <ecs_cluster_id> <subnets_csv> <aws_region> <image|PLACEHOLDER>" >&2
+  echo "    ./create_resources.sh create <prefix> <vpc_id> <app_port> <listener_arn> <execution_role_arn> <task_role_arn> <ecs_sg_id> <priority> <ecs_cluster_id> <subnets_csv> <aws_region> <image|PLACEHOLDER>" >&2
   echo "" >&2
   echo "  Destroy:" >&2
-  echo "    ./create_resources.sh destroy <prefix> <vpc_id> <listener_arn> <priority> <ecs_cluster_id>" >&2
+  echo "    ./create_resources.sh destroy <prefix> <listener_arn> <priority> <ecs_cluster_id>" >&2
   echo "" >&2
   exit 1
 }
@@ -756,8 +499,8 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" "${10}" "${11}" "${12}" "${13}"
       ;;
     destroy)
-      if [[ $# -ne 6 ]]; then usage; fi
-      destroy_all_resources "$2" "$3" "$4" "$5" "$6"
+      if [[ $# -ne 5 ]]; then usage; fi
+      destroy_all_resources "$2" "$3" "$4" "$5"
       ;;
     *)
       usage
