@@ -133,7 +133,7 @@ jobs:
         env:
           VPC_ID: ${{ vars.VPC_ID }}
           LISTENER_ARN: ${{ vars.LISTENER_ARN }}
-          EXECUTION_ROLE_ARN: ${{ vars.EXECUTION_ROLE_ARN }}
+          EXEC_ROLE_ARN: ${{ vars.EXEC_ROLE_ARN }}
           TASK_ROLE_ARN: ${{ vars.TASK_ROLE_ARN}}
           ECS_SG_ID: ${{ vars.ECS_SG_ID }}
           ECS_CLUSTER_ID: ${{ vars.ECS_CLUSTER_ID }}
@@ -368,8 +368,8 @@ jobs:
         shell: bash
         env:
           FAMILY: ${{ steps.parse.outputs.model_dir }}-poc-deployment-task
-          TASK_ROLE_ARN: arn:aws:iam::463470983643:role/poc-deployment-task-role
-          EXEC_ROLE_ARN: arn:aws:iam::463470983643:role/poc-deployment-task-execution-role
+          TASK_ROLE_ARN: ${{ vars.TASK_ROLE_ARN }}
+          EXEC_ROLE_ARN: ${{ vars.EXEC_ROLE_ARN }}
           IMAGE: ${{ steps.build-push-image.outputs.image }}
           LOG_GROUP: poc-deployment-${{ steps.parse.outputs.model_dir }}-logs
         run: |
