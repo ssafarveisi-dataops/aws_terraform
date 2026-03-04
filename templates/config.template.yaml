@@ -12,7 +12,7 @@ app:
     run_time:
       env:
         - name: S3_BUCKET # S3 bucket where artifacts are located (required)
-          value: science-poc-model-deployment # (2)
+          value: science-dev-poc-model-deployment-bucket # (2)
         - name: S3_KEY # S3 key for the model artifact (optional)
           value: <subdirectory name>/A/B/... # (3)
         - name: ROOT_PATH # ROOT PATH for the FastAPI application (required)

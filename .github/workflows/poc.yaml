@@ -26,8 +26,8 @@ on:
 
 env:
   AWS_REGION: "eu-west-1"
-  ECS_CLUSTER: "poc-model-deployment-cluster"
-  ECR_REPOSITORY: "poc-model-deployment"
+  ECS_CLUSTER: "science-dev-poc-model-deployment-cluster"
+  ECR_REPOSITORY: "science-dev-poc-model-deployment"
 
 permissions:
   id-token: write
@@ -367,11 +367,11 @@ jobs:
         id: render-taskdef
         shell: bash
         env:
-          FAMILY: ${{ steps.parse.outputs.model_dir }}-poc-model-deployment-task
+          FAMILY: science-dev-poc-model-deployment-${{ steps.parse.outputs.model_dir }}-service-definition
           TASK_ROLE_ARN: ${{ vars.TASK_ROLE_ARN }}
           EXEC_ROLE_ARN: ${{ vars.EXEC_ROLE_ARN }}
           IMAGE: ${{ steps.build-push-image.outputs.image }}
-          LOG_GROUP: poc-model-deployment-${{ steps.parse.outputs.model_dir }}-logs
+          LOG_GROUP: science-dev-poc-model-deployment-${{ steps.parse.outputs.model_dir }}-logs
         run: |
           ./render-task-def.sh ${{ steps.parse.outputs.config_path }} taskdef.json taskdef.rendered.json
 
@@ -380,7 +380,7 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: taskdef.rendered.json
-          service: ${{ steps.parse.outputs.model_dir }}-poc-model-deployment-service
+          service: science-dev-poc-model-deployment-${{ steps.parse.outputs.model_dir }}-service
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
           wait-for-minutes: 20
@@ -400,7 +400,7 @@ jobs:
                   "color": "2EB67D",
                   "fields": [
                     { "title": "Cluster", "value": "${{ env.ECS_CLUSTER }}", "short": true },
-                    { "title": "Service", "value": "${{ steps.parse.outputs.model_dir }}-poc-model-deployment-service", "short": true },
+                    { "title": "Service", "value": "science-dev-poc-model-deployment-${{ steps.parse.outputs.model_dir }}-service", "short": true },
                     { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
                   ]
                 }
@@ -422,7 +422,7 @@ jobs:
                   "color": "E01E5A",
                   "fields": [
                     { "title": "Cluster", "value": "${{ env.ECS_CLUSTER }}", "short": true },
-                    { "title": "Service", "value": "${{ steps.parse.outputs.model_dir }}-poc-model-deployment-service", "short": true },
+                    { "title": "Service", "value": "science-dev-poc-model-deployment-${{ steps.parse.outputs.model_dir }}-service", "short": true },
                     { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
                   ]
                 }

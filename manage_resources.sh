@@ -11,6 +11,11 @@ export AWS_PAGER=""
 # -------------------------------------------------------------
 log() { echo "INFO: $*" >&2; }
 
+short_prefix() {
+  local input="$1"
+  echo -n "$input" | sha256sum | cut -c1-8
+}
+
 aws_capture() {
   # Usage: out="$(aws_capture ecs list-clusters ...)"
   # - prints stdout on success
@@ -58,7 +63,7 @@ require_nonempty() {
 
 create_log_group() {
   local prefix="$1"
-  local lg_name="poc-model-deployment-${prefix}-logs"
+  local lg_name="science-dev-poc-model-deployment-${prefix}-logs"
 
   local existing
   existing="$(aws logs describe-log-groups \
@@ -83,7 +88,9 @@ create_log_group() {
 
 create_alb_target_group() {
   local prefix="$1" vpc_id="$2" app_port="$3"
-  local tg_name="${prefix}-poc-deployment-tg"
+  # This prevents having too long tg names. Otherwise, AWS complains. 
+  encoded=$(short_prefix "$prefix")
+  local tg_name="science-dev-pmd-${encoded}"
 
   local tg_arn
   tg_arn="$(aws elbv2 describe-target-groups --names "${tg_name}" \
@@ -113,7 +120,8 @@ create_alb_target_group() {
 
 delete_alb_target_group() {
   local prefix="$1"
-  local tg_name="${prefix}-poc-deployment-tg"
+  encoded=$(short_prefix "$prefix")
+  local tg_name="science-dev-pmd-${encoded}"
 
   local tg_arn
   tg_arn="$(aws elbv2 describe-target-groups --names "${tg_name}" \
@@ -192,7 +200,7 @@ create_ecs_task_definition() {
   local log_group_name="$6"
   local aws_region="$7"
 
-  local family="${prefix}-poc-model-deployment-task"
+  local family="science-dev-poc-model-deployment-${prefix}-service-definition"
   local container_name="poc-model-deployment-container"
 
   if [[ "${image}" == "PLACEHOLDER" ]]; then
@@ -283,7 +291,7 @@ create_or_update_ecs_service() {
   local subnets_csv="$7"
   local health_grace="$8"
 
-  local service_name="${prefix}-poc-model-deployment-service"
+  local service_name="science-dev-poc-model-deployment-${prefix}-service"
   local container_name="poc-model-deployment-container"
   local netcfg="awsvpcConfiguration={subnets=[${subnets_csv}],securityGroups=[${ecs_security_group_id}],assignPublicIp=DISABLED}"
 
@@ -331,7 +339,7 @@ delete_ecs_service() {
   local prefix="$1"
   local ecs_cluster_id="$2"
 
-  local service_name="${prefix}-poc-model-deployment-service"
+  local service_name="science-dev-poc-model-deployment-${prefix}-service"
 
   local status
   status="$(aws ecs describe-services \
@@ -364,7 +372,7 @@ delete_ecs_service() {
 
 deregister_task_definitions_for_family() {
   local prefix="$1"
-  local family="${prefix}-poc-model-deployment-task"
+  local family="science-dev-poc-model-deployment-${prefix}-service-definition"
 
   # Deregister ALL revisions for this family
   local arns
@@ -472,7 +480,7 @@ destroy_all_resources() {
   delete_alb_target_group "${prefix}"
 
   # CloudWatch log group
-  aws logs delete-log-group --log-group-name "poc-model-deployment-${prefix}-logs" >/dev/null
+  aws logs delete-log-group --log-group-name "science-dev-poc-model-deployment-${prefix}-logs" >/dev/null
 
   log "All resources removed for prefix: ${prefix}"
 }

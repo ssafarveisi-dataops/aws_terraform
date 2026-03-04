@@ -4,7 +4,7 @@ app:
     run_time:
       env:
         - name: S3_BUCKET
-          value: science-poc-model-deployment
+          value: science-dev-poc-model-deployment-bucket
         - name: S3_KEY
           value: ml-model-1/model.pth
         - name: ROOT_PATH
