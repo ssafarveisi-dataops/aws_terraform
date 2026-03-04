@@ -49,5 +49,50 @@
       }
     }
 ],
-"tags": []
+"tags": [
+   {
+      "key": "AWS Environment",
+      "value": "data_dev"
+    },
+    {
+      "key": "Project",
+      "value": "poc-model-deployment"
+    },
+    {
+      "key": "Department",
+      "value": "Data"
+    },
+    {
+      "key": "Owner",
+      "value": "Sajad Safarveisi"
+    },
+    {
+      "key": "Description",
+      "value": "Deploy automatically an ML model as an ECS service for POC purposes"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "Terraform"
+    },
+    {
+      "key": "Responsible Person",
+      "value": "Sajad Safarveisi"
+    },
+    {
+      "key": "Environment",
+      "value": "data_dev"
+    },
+    {
+      "key": "Approver",
+      "value": "Tomislav Zupanovic"
+    },
+    {
+      "key": "Team",
+      "value": "DataOps"
+    },
+    {
+      "key": "serviceName",
+      "value": "poc-model-deployment"
+    }
+  ]
 }
